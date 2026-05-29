@@ -1,14 +1,87 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Legacy4 - Control Board</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #121212; color: #e0e0e0; text-align: center; padding-top: 50px; }
-        .container { background-color: #1e1e1e; border: 2px solid #00dfa2; padding: 30px; border-radius: 12px; display: inline-block; width: 460px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
-        h1 { color: #00dfa2; margin-bottom: 5px; }
-        button { background-color: #00dfa2; color: #121212; border: none; padding: 12px 20px; font-weight: bold; font-size: 0.95em; border-radius: 6px; cursor: pointer; margin: 10px 5px; }
-        pre { background-color: #2d2d2d; color: #4ade80; padding: 15px; border-radius: 6px; text-align: left; font-size: 0.9em; margin-top: 20px; display: none; border: 1px solid #444; overflow-x: auto; }
-        .status { color: #4ade80; font-weight: bold; }
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+            text-align: center;
+            padding-top: 60px;
+            margin: 0;
+        }
+        .container {
+            background-color: #1e293b;
+            border: 2px solid #00b4d8;
+            padding: 35px;
+            border-radius: 16px;
+            display: inline-block;
+            width: 480px;
+            box-shadow: 0 12px 32px rgba(0, 180, 216, 0.15);
+            border-top: 6px solid #00b4d8;
+        }
+        h1 {
+            font-size: 2.2em;
+            margin-top: 0;
+            margin-bottom: 5px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .logo-text-legacy { color: #ffffff; }
+        .logo-text-4 { color: #00b4d8; }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 0.95em;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #00b4d8;
+            color: #0f172a;
+            border: none;
+            padding: 14px 24px;
+            font-weight: bold;
+            font-size: 0.95em;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 6px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 180, 216, 0.2);
+        }
+        button:hover {
+            background-color: #0096b4;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0, 180, 216, 0.3);
+        }
+        button:active {
+            transform: translateY(1px);
+        }
+        pre {
+            background-color: #0f172a;
+            color: #38bdf8;
+            padding: 18px;
+            border-radius: 8px;
+            text-align: left;
+            font-size: 0.9em;
+            margin-top: 25px;
+            display: none;
+            border: 1px solid #334155;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        .status {
+            color: #00b4d8;
+            font-weight: bold;
+        }
+        .divider {
+            border: 0;
+            border-top: 1px solid #334155;
+            margin: 22px 0;
+        }
     </style>
     <script>
         async function sendTelemetry(isValid) {
@@ -36,16 +109,23 @@
 </head>
 <body>
 <div class="container">
-    <h1>Legacy4 Enterprise PaaS</h1>
-    <p>Architektur: <span class="status">NGINX + Python API (Resilient Pod)</span></p>
-    <hr style="border: 0; border-top: 1px solid #333; margin: 20px 0;">
+    <h1><span class="logo-text-legacy">Legacy</span><span class="logo-text-4">4</span></h1>
+    <p class="subtitle">Enterprise PaaS • Control Board</p>
 
-    <p style="text-align: left; font-size: 0.9em; color: #ccc;">
-        <strong>Testlauf:</strong> NGINX nimmt Daten auf Port 80 an und leitet sie an die Python-App weiter. Die API fängt Formatfehler strukturiert ab.
+    <p style="font-size: 0.9em; color: #cbd5e1; background: #0f172a; padding: 8px 12px; border-radius: 6px; display: inline-block;">
+        Infrastruktur: <span class="status">LegacyHub Container Grid</span>
     </p>
 
-    <button onclick="sendTelemetry(true)">Valide Daten senden</button>
-    <button style="background-color: #ef4444; color: white;" onclick="sendTelemetry(false)">API-Fehler provozieren</button>
+    <div class="divider"></div>
+
+    <p style="text-align: left; font-size: 0.9em; color: #94a3b8; line-height: 1.5;">
+        <strong>Simulation:</strong> Generiere Maschinendaten über den virtuellen <em>LegacyConnector</em>. NGINX leitet die Daten intern via Reverse Proxy an den Microservice weiter.
+    </p>
+
+    <div style="margin-top: 20px;">
+        <button onclick="sendTelemetry(true)">Valide Daten an Hub senden</button>
+        <button style="background-color: #ef4444; color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);" onclick="sendTelemetry(false)">API-Fehler provozieren</button>
+    </div>
 
     <pre id="response"></pre>
 </div>
