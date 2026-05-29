@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Legacy4 - Control Board</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #121212; color: #e0e0e0; text-align: center; padding-top: 50px; }
+        .container { background-color: #1e1e1e; border: 2px solid #00dfa2; padding: 30px; border-radius: 12px; display: inline-block; width: 460px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
+        h1 { color: #00dfa2; margin-bottom: 5px; }
+        button { background-color: #00dfa2; color: #121212; border: none; padding: 12px 20px; font-weight: bold; font-size: 0.95em; border-radius: 6px; cursor: pointer; margin: 10px 5px; }
+        pre { background-color: #2d2d2d; color: #4ade80; padding: 15px; border-radius: 6px; text-align: left; font-size: 0.9em; margin-top: 20px; display: none; border: 1px solid #444; overflow-x: auto; }
+        .status { color: #4ade80; font-weight: bold; }
+    </style>
+    <script>
+        async function sendTelemetry(isValid) {
+            const responseBox = document.getElementById('response');
+            responseBox.style.display = 'block';
+            responseBox.innerText = 'Sende Payload via NGINX an Python-API...';
+
+            const payload = isValid
+                ? { device_id: "connector-alpha-4", vibration_index: 5.23, status: "RUNNING" }
+                : "INVALID_STRING_NO_JSON";
+
+            try {
+                const res = await fetch('/api/telemetry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: typeof payload === 'string' ? payload : JSON.stringify(payload)
+                });
+                const data = await res.json();
+                responseBox.innerText = "HTTP Status: " + res.status + "\n" + JSON.stringify(data, null, 2);
+            } catch (error) {
+                responseBox.innerText = 'Fehler: ' + error;
+            }
+        }
+    </script>
+</head>
+<body>
+<div class="container">
+    <h1>Legacy4 Enterprise PaaS</h1>
+    <p>Architektur: <span class="status">NGINX + Python API (Resilient Pod)</span></p>
+    <hr style="border: 0; border-top: 1px solid #333; margin: 20px 0;">
+
+    <p style="text-align: left; font-size: 0.9em; color: #ccc;">
+        <strong>Testlauf:</strong> NGINX nimmt Daten auf Port 80 an und leitet sie an die Python-App weiter. Die API fängt Formatfehler strukturiert ab.
+    </p>
+
+    <button onclick="sendTelemetry(true)">Valide Daten senden</button>
+    <button style="background-color: #ef4444; color: white;" onclick="sendTelemetry(false)">API-Fehler provozieren</button>
+
+    <pre id="response"></pre>
+</div>
+</body>
+</html>
