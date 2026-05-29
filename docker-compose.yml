@@ -6,8 +6,8 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - ./nginx/index.html:/usr/share/nginx/html/index.html
+      - ./fronted/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./fronted/index.html:/usr/share/nginx/html/index.html
     depends_on:
       - backend
 
