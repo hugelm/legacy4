@@ -22,8 +22,8 @@ jobs:
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          application_name: 'legacy4-hub'
-          environment_name: 'legacy4-prod-env'
+          application_name: 'legacy4-app'
+          environment_name: 'legacy4-env'
           version_label: 'deploy-${{ github.sha }}'
           region: 'eu-central-1'
           deployment_package: 'deploy.zip'
