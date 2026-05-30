@@ -55,9 +55,8 @@ Add the following secrets:
 * `AWS_SECRET_ACCESS_KEY`: Your AWS Secret Access Key from IAM / Security credentials.
 
 ### 2. Triggering the Automation
-Commit and push your changes to the `main` branch. The pipeline will automatically build the `deploy.zip` using the `frontend/` and `backend/` directories.
-
-> Info: You can monitor the live building process under the **Actions** tab of the GitHub repository.
+Commit and push your changes to the `main` branch. The pipeline will automatically build the `deploy.zip` and send it to AWS Elastic Beanstalk for deployment.
+> **Info:** You can monitor the live building process under the **Actions** tab of the GitHub repository.
 
 ---
 
