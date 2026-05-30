@@ -1,0 +1,29 @@
+name: Deploy Legacy4 Platform
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Create Deployment Package (ZIP)
+        run: zip -r deploy.zip docker-compose.yml nginx/ app/
+
+      - name: Deploy to AWS Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: 'legacy4-hub'
+          environment_name: 'legacy4-prod-env'
+          version_label: 'deploy-${{ github.sha }}'
+          region: 'eu-central-1'
+          deployment_package: 'deploy.zip'
