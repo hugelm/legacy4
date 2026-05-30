@@ -43,12 +43,12 @@ eb deploy legacy4-env
 
 ---
 
-## 🤖 Automated Deployment via GitHub Actions (CI/CD)
+## 🤖 Automated Deployment via GitHub Actions
 
 Once the environment is created, you can automate deployments. Every time you push code updates to GitHub, the pipeline will automatically package and deploy the new version.
 
 ### 1. Configure GitHub Repository Secrets
-To grant GitHub permission to deploy to your AWS account, navigate to your GitHub Repository → **Settings** → **Secrets and variables** → **Actions** and click **New repository secret**.
+To grant GitHub permission to deploy to your AWS account, navigate to GitHub Repository → **Settings** → **Secrets and variables** → **Actions** and click **New repository secret**.
 
 Add the following secrets:
 * `AWS_ACCESS_KEY_ID`: Your AWS Access Key ID from IAM / Security credentials.
@@ -57,7 +57,7 @@ Add the following secrets:
 ### 2. Triggering the Automation
 Commit and push your changes to the `main` branch. The pipeline will automatically build the `deploy.zip` using the `frontend/` and `backend/` directories.
 
-> Info: You can monitor the live building process under the **Actions** tab of your GitHub repository.
+> Info: You can monitor the live building process under the **Actions** tab of the GitHub repository.
 
 ---
 
