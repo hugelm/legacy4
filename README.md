@@ -26,7 +26,7 @@ eb create legacy4-env
 
 ---
 
-## 🔄 Updating the Application (Manual Deploy)
+## 🔄 Updating the Application (Manual Deployment)
 
 Whenever you push new changes to GitHub, pull them into your CloudShell environment to update the live application.
 
@@ -40,6 +40,24 @@ git pull origin main
 ```bash
 eb deploy legacy4-env
 ```
+
+---
+
+## 🤖 Automated Deployment via GitHub Actions (CI/CD)
+
+Once the environment is created, you can automate deployments. Every time you push code updates to GitHub, the pipeline will automatically package and deploy the new version.
+
+### 1. Configure GitHub Repository Secrets
+To grant GitHub permission to deploy to your AWS account, navigate to your GitHub Repository → **Settings** → **Secrets and variables** → **Actions** and click **New repository secret**.
+
+Add the following secrets:
+* `AWS_ACCESS_KEY_ID`: Your AWS Access Key ID from IAM / Security credentials.
+* `AWS_SECRET_ACCESS_KEY`: Your AWS Secret Access Key from IAM / Security credentials.
+
+### 2. Triggering the Automation
+Commit and push your changes to the `main` branch. The pipeline will automatically build the `deploy.zip` using the `frontend/` and `backend/` directories.
+
+> Info: You can monitor the live building process under the **Actions** tab of your GitHub repository.
 
 ---
 
