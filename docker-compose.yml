@@ -6,62 +6,36 @@ services:
     volumes:
       - /var/app/current/frontend/nginx.conf:/etc/nginx/conf.d/default.conf
       - /var/app/current/frontend/index.html:/usr/share/nginx/html/index.html
-      # for testing V2
-      - /var/app/current/frontend/index2.html:/usr/share/nginx/html/index2.html
-      # V3 - Dynamic Dashboard
-      - /var/app/current/frontend/index3.html:/usr/share/nginx/html/index3.html
     depends_on:
       - backend
-      # for testing V2
-      - backend2
-      # V3
-      - backend3
 
   backend:
     image: python:3.10-slim
-    command: ["python", "/app/receiver.py"]
+    command: >
+      sh -c "pip install --no-cache-dir -r /app/requirements.txt && python /app/main.py"
     ports:
       - "8080:8080"
     volumes:
       - /var/app/current/backend:/app
-
-  # for testing V2
-  backend2:
-    image: python:3.10-slim
-    command: ["python", "/app/receiver2.py"]
-    ports:
-      - "8081:8081"
-    volumes:
-      - /var/app/current/backend:/app
-
-  # V3 - Dynamic Dashboard with MariaDB
-  backend3:
-    image: python:3.10-slim
-    command: >
-      sh -c "pip install --no-cache-dir -r /app/requirements.txt && python /app/main3.py"
-    ports:
-      - "8082:8082"
-    volumes:
-      - /var/app/current/backend:/app
     environment:
-      - DB_HOST=db3
+      - DB_HOST=db
       - DB_USER=legacy_user
       - DB_PASSWORD=legacy_pass
       - DB_NAME=legacyhub
     depends_on:
-      db3:
+      db:
         condition: service_healthy
 
-  db3:
+  db:
     image: mariadb:10.11
-    container_name: legacy4-db3
+    container_name: legacy4-db
     environment:
       MYSQL_ROOT_PASSWORD: root_pass
       MYSQL_DATABASE: legacyhub
       MYSQL_USER: legacy_user
       MYSQL_PASSWORD: legacy_pass
     volumes:
-      - legacy4-db3-data:/var/lib/mysql
+      - legacy4-db-data:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mariadb-admin ping -h localhost -uroot -proot_pass || exit 1"]
       interval: 3s
@@ -69,5 +43,4 @@ services:
       retries: 10
 
 volumes:
-  legacy4-db:
-  legacy4-db3-data:
+  legacy4-db-data:
