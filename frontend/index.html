@@ -886,17 +886,11 @@
                             <span class="card-title">Live Telemetry</span>
                         </div>
                     </div>
-                    <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; justify-content:space-between; margin-bottom:12px;">
-                        <div class="form-group" style="flex:1; min-width:220px; margin-bottom:0;">
-                            <label class="form-label" for="overview-device-select">Data source</label>
-                            <select class="form-select" id="overview-device-select">
-                                <option value="">All devices (mixed timeline)</option>
-                            </select>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:12px; padding-bottom:2px;">
-                            <span style="font-size:0.78rem; color:var(--text-muted);">Dashboard Auto-Refresh (3s)</span>
-                            <label class="switch"><input type="checkbox" id="dashboard-auto-refresh" checked><span class="slider-toggle"></span></label>
-                        </div>
+                    <div class="form-group" style="width:100%; margin-bottom:12px;">
+                        <label class="form-label" for="overview-device-select">Data source</label>
+                        <select class="form-select" id="overview-device-select">
+                            <option value="">All devices (mixed timeline)</option>
+                        </select>
                     </div>
                     <p id="overview-chart-caption" style="font-size:0.78rem; color:var(--text-muted); margin-bottom:14px; line-height:1.5;">
                         Last 25 vibration readings across all registered devices. Select a single device for a dedicated trend line.
@@ -1969,16 +1963,10 @@
     });
 
     // ============================
-    // Initial Load & Polling
+    // Initial Load
     // ============================
     refreshDashboard();
     refreshTelemetryChart();
-
-    setInterval(() => {
-        if (document.getElementById('dashboard-auto-refresh').checked) {
-            refreshDashboard();
-        }
-    }, 3000);
 </script>
 </body>
 </html>
