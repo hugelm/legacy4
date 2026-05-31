@@ -756,10 +756,6 @@
                     <label class="form-label" for="maint-technician">Technician</label>
                     <select class="form-select" id="maint-technician" required>
                         <option value="">— Select Technician —</option>
-                        <option value="Markus Rühl">Markus Rühl</option>
-                        <option value="Claudia Obert">Claudia Obert</option>
-                        <option value="Leon Gooretzzkaaa">Leon Gooretzzkaaa</option>
-                        <option value="Luke Skywalker">Luke Skywalker</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -772,6 +768,26 @@
                 <button type="button" class="btn btn-ghost" onclick="closeModal('modal-maintenance')">Cancel</button>
                 <button type="button" class="btn btn-primary" id="btn-maint-submit" onclick="submitMaintenance()">
                     <i class="fa-solid fa-check"></i> Create Event
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal-technician">
+    <div class="modal" style="max-width: 420px;">
+        <div class="modal-title"><i class="fa-solid fa-user-plus"></i> <span id="modal-technician-title">Add Technician</span></div>
+        <form id="form-technician" onsubmit="return false;">
+            <input type="hidden" id="technician-edit-mode" value="create">
+            <input type="hidden" id="technician-edit-id" value="">
+            <div class="form-group">
+                <label class="form-label" for="technician-name">Name</label>
+                <input class="form-input" id="technician-name" placeholder="e.g., Markus Rühl" required>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('modal-technician')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn-technician-submit" onclick="submitTechnician()">
+                    <i class="fa-solid fa-check"></i> Save
                 </button>
             </div>
         </form>
@@ -812,6 +828,9 @@
         </li>
         <li class="sidebar-item" data-tab="security">
             <a href="#security"><i class="fa-solid fa-shield-halved"></i>Security</a>
+        </li>
+        <li class="sidebar-item" data-tab="admin">
+            <a href="#admin"><i class="fa-solid fa-user-gear"></i>Admin</a>
         </li>
     </ul>
 
@@ -1079,6 +1098,54 @@
             </div>
         </div>
 
+        <div id="view-admin" class="dashboard-view">
+            <div class="card glow" style="margin-bottom: 20px;">
+                <div class="card-header">
+                    <div class="card-title-area">
+                        <i class="fa-solid fa-book"></i>
+                        <span class="card-title">API Documentation</span>
+                    </div>
+                </div>
+                <p style="font-size:0.88rem; color:var(--text-muted); line-height:1.6; margin-bottom:18px;">
+                    Interactive OpenAPI documentation for all LegacyHub REST endpoints. Test requests directly from the browser.
+                </p>
+                <a class="btn btn-primary" href="/docs" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Swagger UI
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title-area">
+                        <i class="fa-solid fa-users-gear"></i>
+                        <span class="card-title">Technicians</span>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="openTechnicianModal('create')">
+                        <i class="fa-solid fa-plus"></i> Add Technician
+                    </button>
+                </div>
+                <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:16px;">
+                    Manage technicians available in the Maintenance Planning dropdown.
+                </p>
+                <div id="technician-table-area">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr>
+                                <th>Name</th><th>Added</th><th style="width:100px;">Actions</th>
+                            </tr></thead>
+                            <tbody id="technician-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="technician-empty" class="empty-state" style="display:none;">
+                    <div class="empty-state-icon"><i class="fa-solid fa-user-plus"></i></div>
+                    <h3>No technicians yet</h3>
+                    <p>Add technicians to assign them to maintenance events.</p>
+                    <button class="btn btn-primary" onclick="openTechnicianModal('create')"><i class="fa-solid fa-plus"></i> Add First Technician</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 </main>
 
@@ -1091,6 +1158,7 @@
     const MAX_SCHEDULED_YEAR = 2035;
     let cachedDevices = [];
     let cachedMaintenance = [];
+    let cachedTechnicians = [];
     let overviewChartRaw = [];
     let pendingConfirmCallback = null;
     let simInterval = null;
@@ -1106,7 +1174,8 @@
         'overview': 'Machine Overview',
         'telemetry': 'Telemetry Stream',
         'maintenance': 'Maintenance',
-        'security': 'Security & Compliance'
+        'security': 'Security & Compliance',
+        'admin': 'Admin Panel'
     };
 
     function switchTab(tabId) {
@@ -1268,14 +1337,16 @@
     // ============================
     async function refreshDashboard() {
         try {
-            const [dashboard, devices, maintenance] = await Promise.all([
+            const [dashboard, devices, maintenance, technicians] = await Promise.all([
                 apiGet('/dashboard'),
                 apiGet('/devices'),
-                apiGet('/maintenance')
+                apiGet('/maintenance'),
+                apiGet('/technicians')
             ]);
 
             cachedDevices = devices;
             cachedMaintenance = maintenance;
+            cachedTechnicians = technicians;
 
             // Stats
             document.getElementById('stat-total').textContent = dashboard.total_devices;
@@ -1299,6 +1370,10 @@
 
             // Maintenance full view
             renderMaintenanceTimeline(maintenance);
+
+            // Admin technician table
+            renderTechnicianTable(technicians);
+            updateTechnicianDropdown();
 
             // Update sim device dropdown
             updateDeviceDropdowns(devices);
@@ -1492,6 +1567,125 @@
                 </div>
             `;
         });
+    }
+
+    // ============================
+    // Technicians (Admin)
+    // ============================
+    function updateTechnicianDropdown() {
+        const sel = document.getElementById('maint-technician');
+        if (!sel) return;
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="">— Select Technician —</option>';
+        cachedTechnicians.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.name;
+            opt.textContent = t.name;
+            sel.appendChild(opt);
+        });
+        if (currentVal && [...sel.options].some(o => o.value === currentVal)) {
+            sel.value = currentVal;
+        }
+    }
+
+    function renderTechnicianTable(technicians) {
+        const tbody = document.getElementById('technician-table-body');
+        const emptyEl = document.getElementById('technician-empty');
+        const tableArea = document.getElementById('technician-table-area');
+        if (!tbody) return;
+
+        if (!technicians || technicians.length === 0) {
+            tableArea.style.display = 'none';
+            emptyEl.style.display = 'flex';
+            return;
+        }
+
+        tableArea.style.display = 'block';
+        emptyEl.style.display = 'none';
+        tbody.innerHTML = '';
+
+        technicians.forEach(t => {
+            const added = t.created_at ? formatDate(t.created_at) : '—';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="font-weight:600;">${t.name}</td>
+                <td style="color:var(--text-secondary);">${added}</td>
+                <td>
+                    <div class="td-actions">
+                        <button class="btn-icon" title="Edit" onclick="openTechnicianModal('edit', ${t.id})"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn-icon btn-icon-danger" title="Delete" onclick="confirmDeleteTechnician(${t.id}, '${t.name.replace(/'/g, "\\'")}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function openTechnicianModal(mode, technicianId) {
+        document.getElementById('technician-edit-mode').value = mode;
+        document.getElementById('technician-edit-id').value = technicianId || '';
+        const title = document.getElementById('modal-technician-title');
+        const submitBtn = document.getElementById('btn-technician-submit');
+
+        if (mode === 'edit' && technicianId) {
+            const tech = cachedTechnicians.find(t => t.id === technicianId);
+            if (!tech) return;
+            title.textContent = 'Edit Technician';
+            submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save';
+            document.getElementById('technician-name').value = tech.name;
+        } else {
+            title.textContent = 'Add Technician';
+            submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Add';
+            document.getElementById('form-technician').reset();
+        }
+        openModal('modal-technician');
+    }
+
+    async function submitTechnician() {
+        const mode = document.getElementById('technician-edit-mode').value;
+        const name = document.getElementById('technician-name').value.trim();
+        if (!name) {
+            showToast('Please enter a name.', 'error');
+            return;
+        }
+
+        try {
+            let result;
+            if (mode === 'edit') {
+                result = await apiPut(`/technicians/${document.getElementById('technician-edit-id').value}`, { name });
+            } else {
+                result = await apiPost('/technicians', { name });
+            }
+
+            if (result.status >= 200 && result.status < 300) {
+                showToast(mode === 'edit' ? 'Technician updated.' : `Technician "${name}" added.`, 'success');
+                closeModal('modal-technician');
+                refreshDashboard();
+            } else {
+                showToast(result.data.error || 'Error saving technician.', 'error');
+            }
+        } catch (err) {
+            showToast('Connection error: ' + err.message, 'error');
+        }
+    }
+
+    function confirmDeleteTechnician(technicianId, name) {
+        document.getElementById('confirm-text').innerHTML =
+            `Delete technician <strong>${name}</strong>? Existing maintenance events keep the assigned name as text.`;
+        pendingConfirmCallback = async () => {
+            try {
+                const res = await apiDelete(`/technicians/${technicianId}`);
+                if (res.status === 200) {
+                    showToast(`Technician "${name}" deleted.`, 'success');
+                    refreshDashboard();
+                } else {
+                    showToast(res.data.error || 'Error deleting technician.', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        };
+        openModal('modal-confirm');
     }
 
     // ============================
@@ -1722,6 +1916,7 @@
         }
 
         updateDeviceDropdowns(cachedDevices);
+        updateTechnicianDropdown();
         if (mode === 'edit' && eventId) {
             const event = cachedMaintenance.find(m => m.id === eventId);
             if (event) document.getElementById('maint-device').value = event.device_id;

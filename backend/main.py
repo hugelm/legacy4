@@ -164,6 +164,27 @@ def init_db():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """)
 
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS technicians (
+                    id          INT AUTO_INCREMENT PRIMARY KEY,
+                    name        VARCHAR(255) NOT NULL UNIQUE,
+                    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """)
+
+            cursor.execute("SELECT COUNT(*) as count FROM technicians")
+            if cursor.fetchone()['count'] == 0:
+                default_technicians = [
+                    ('Markus Rühl',),
+                    ('Claudia Obert',),
+                    ('Leon Gooretzzkaaa',),
+                    ('Luke Skywalker',),
+                ]
+                cursor.executemany(
+                    "INSERT INTO technicians (name) VALUES (%s)",
+                    default_technicians
+                )
+
             for index_sql in (
                 "CREATE INDEX idx_telemetry_device ON telemetry(device_id)",
                 "CREATE INDEX idx_telemetry_timestamp ON telemetry(timestamp DESC)",
@@ -308,6 +329,13 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
             raise ApiError(f"Maintenance event #{event_id} not found", 404)
         return event
 
+    def _require_technician(self, cursor, technician_id):
+        cursor.execute("SELECT * FROM technicians WHERE id = %s", (technician_id,))
+        technician = cursor.fetchone()
+        if not technician:
+            raise ApiError(f"Technician #{technician_id} not found", 404)
+        return technician
+
     def do_OPTIONS(self):
         self.send_response(200)
         self._send_cors_headers()
@@ -322,6 +350,8 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
             self._run("get telemetry", self._get_telemetry)
         elif segments == ['api', 'maintenance']:
             self._run("get maintenance", self._get_maintenance)
+        elif segments == ['api', 'technicians']:
+            self._run("get technicians", self._get_technicians)
         elif segments == ['api', 'dashboard']:
             self._run("get dashboard", self._get_dashboard)
         else:
@@ -336,6 +366,8 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
             self._run("create telemetry", self._create_telemetry)
         elif segments == ['api', 'maintenance']:
             self._run("create maintenance", self._create_maintenance)
+        elif segments == ['api', 'technicians']:
+            self._run("create technician", self._create_technician)
         else:
             self._send_error(404, "Endpoint not found")
 
@@ -346,6 +378,8 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
             self._run("update device", lambda: self._update_device(segments[2]))
         elif len(segments) == 3 and segments[:2] == ['api', 'maintenance']:
             self._run("update maintenance", lambda: self._update_maintenance(segments[2]))
+        elif len(segments) == 3 and segments[:2] == ['api', 'technicians']:
+            self._run("update technician", lambda: self._update_technician(segments[2]))
         else:
             self._send_error(404, "Endpoint not found")
 
@@ -356,6 +390,8 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
             self._run("delete device", lambda: self._delete_device(segments[2]))
         elif len(segments) == 3 and segments[:2] == ['api', 'maintenance']:
             self._run("delete maintenance", lambda: self._delete_maintenance(segments[2]))
+        elif len(segments) == 3 and segments[:2] == ['api', 'technicians']:
+            self._run("delete technician", lambda: self._delete_technician(segments[2]))
         else:
             self._send_error(404, "Endpoint not found")
 
@@ -613,6 +649,78 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
 
         print(f"[MAINTENANCE-DELETED] #{event_id}", flush=True)
         self._send_json(200, {"status": "DELETED", "id": int(event_id)})
+
+    def _get_technicians(self):
+        conn = get_db()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM technicians ORDER BY name ASC")
+                rows = cursor.fetchall()
+        finally:
+            conn.close()
+        self._send_json(200, rows)
+
+    def _create_technician(self):
+        body = self._read_body()
+        name = require_text(body.get('name'), 'name')
+
+        conn = get_db()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM technicians WHERE name = %s", (name,))
+                if cursor.fetchone():
+                    raise ApiError(f"Technician '{name}' already exists", 409)
+
+                cursor.execute("INSERT INTO technicians (name) VALUES (%s)", (name,))
+                new_id = cursor.lastrowid
+            conn.commit()
+        finally:
+            conn.close()
+
+        print(f"[TECHNICIAN-CREATED] #{new_id} {name}", flush=True)
+        self._send_json(201, {"status": "CREATED", "id": new_id, "name": name})
+
+    def _update_technician(self, technician_id):
+        body = self._read_body()
+        name = require_text(body.get('name'), 'name')
+
+        conn = get_db()
+        try:
+            with conn.cursor() as cursor:
+                existing = self._require_technician(cursor, technician_id)
+                cursor.execute(
+                    "SELECT * FROM technicians WHERE name = %s AND id != %s",
+                    (name, technician_id)
+                )
+                if cursor.fetchone():
+                    raise ApiError(f"Technician '{name}' already exists", 409)
+
+                old_name = existing['name']
+                cursor.execute("UPDATE technicians SET name = %s WHERE id = %s", (name, technician_id))
+                if old_name != name:
+                    cursor.execute(
+                        "UPDATE maintenance SET technician = %s WHERE technician = %s",
+                        (name, old_name)
+                    )
+            conn.commit()
+        finally:
+            conn.close()
+
+        print(f"[TECHNICIAN-UPDATED] #{technician_id} -> {name}", flush=True)
+        self._send_json(200, {"status": "UPDATED", "id": int(technician_id), "name": name})
+
+    def _delete_technician(self, technician_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cursor:
+                existing = self._require_technician(cursor, technician_id)
+                cursor.execute("DELETE FROM technicians WHERE id = %s", (technician_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+        print(f"[TECHNICIAN-DELETED] #{technician_id} ({existing['name']})", flush=True)
+        self._send_json(200, {"status": "DELETED", "id": int(technician_id)})
 
     def _get_dashboard(self):
         conn = get_db()

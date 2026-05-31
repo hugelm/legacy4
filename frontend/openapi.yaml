@@ -18,6 +18,7 @@ tags:
   - name: Devices
   - name: Telemetry
   - name: Maintenance
+  - name: Technicians
   - name: Dashboard
 
 paths:
@@ -263,6 +264,97 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MaintenanceDeleted'
+        '404':
+          $ref: '#/components/responses/ClientError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/technicians:
+    get:
+      tags: [Technicians]
+      summary: List all technicians
+      operationId: listTechnicians
+      responses:
+        '200':
+          description: Technician list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Technician'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Technicians]
+      summary: Add a technician
+      operationId: createTechnician
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TechnicianCreate'
+            example:
+              name: Markus Rühl
+      responses:
+        '201':
+          description: Technician created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicianCreated'
+        '400':
+          $ref: '#/components/responses/ClientError'
+        '409':
+          $ref: '#/components/responses/ClientError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/technicians/{technicianId}:
+    parameters:
+      - name: technicianId
+        in: path
+        required: true
+        schema:
+          type: integer
+        example: 1
+    put:
+      tags: [Technicians]
+      summary: Rename a technician
+      operationId: updateTechnician
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TechnicianCreate'
+      responses:
+        '200':
+          description: Technician updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicianUpdated'
+        '400':
+          $ref: '#/components/responses/ClientError'
+        '404':
+          $ref: '#/components/responses/ClientError'
+        '409':
+          $ref: '#/components/responses/ClientError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Technicians]
+      summary: Delete a technician
+      operationId: deleteTechnician
+      responses:
+        '200':
+          description: Technician deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicianDeleted'
         '404':
           $ref: '#/components/responses/ClientError'
         '500':
@@ -546,6 +638,56 @@ components:
           type: integer
 
     MaintenanceDeleted:
+      type: object
+      properties:
+        status:
+          type: string
+          example: DELETED
+        id:
+          type: integer
+
+    Technician:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    TechnicianCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: Markus Rühl
+
+    TechnicianCreated:
+      type: object
+      properties:
+        status:
+          type: string
+          example: CREATED
+        id:
+          type: integer
+        name:
+          type: string
+
+    TechnicianUpdated:
+      type: object
+      properties:
+        status:
+          type: string
+          example: UPDATED
+        id:
+          type: integer
+        name:
+          type: string
+
+    TechnicianDeleted:
       type: object
       properties:
         status:
