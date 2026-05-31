@@ -6,7 +6,7 @@ import os
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- Database Credentials from Environment ---
 DB_HOST = os.environ.get('DB_HOST', 'db3')
@@ -137,7 +137,7 @@ def init_db():
                 telemetry_data = []
                 for i in range(15):
                     # Offsets in 5 minutes intervals going backwards
-                    ts = (base_time - pymysql.converters.timedelta(minutes=(15 - i) * 5)).strftime("%Y-%m-%d %H:%M:%S")
+                    ts = (base_time - timedelta(minutes=(15 - i) * 5)).strftime("%Y-%m-%d %H:%M:%S")
                     
                     # Pump Alpha-01
                     telemetry_data.append((
@@ -167,9 +167,9 @@ def init_db():
 
                 # Seed maintenance events
                 maint_events = [
-                    ('pump-alpha-01', 'Scheduled Calibration', 'Routine sensor re-calibration.', 'John D.', 'routine', (base_time + pymysql.converters.timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")),
-                    ('turbine-beta-02', 'Filter Replacement', 'Replace air intake and cooling filters.', 'Alice S.', 'medium', (base_time + pymysql.converters.timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S")),
-                    ('compressor-gamma-03', 'Emergency Bearing Check', 'Address high vibration warnings.', 'Bob K.', 'immediate', (base_time + pymysql.converters.timedelta(hours=4)).strftime("%Y-%m-%d %H:%M:%S"))
+                    ('pump-alpha-01', 'Scheduled Calibration', 'Routine sensor re-calibration.', 'John D.', 'routine', (base_time + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")),
+                    ('turbine-beta-02', 'Filter Replacement', 'Replace air intake and cooling filters.', 'Alice S.', 'medium', (base_time + timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S")),
+                    ('compressor-gamma-03', 'Emergency Bearing Check', 'Address high vibration warnings.', 'Bob K.', 'immediate', (base_time + timedelta(hours=4)).strftime("%Y-%m-%d %H:%M:%S"))
                 ]
                 cursor.executemany("""
                     INSERT INTO maintenance (device_id, title, description, technician, priority, scheduled)
