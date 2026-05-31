@@ -1,0 +1,613 @@
+openapi: 3.0.3
+info:
+  title: LegacyHub IoT API
+  description: |
+    REST API for device registration (IPv4), telemetry ingestion, maintenance planning, and dashboard aggregates.
+
+    Device IDs are the device IPv4 address (e.g. `192.168.10.101`).
+    Scheduled maintenance dates must use years between 2020 and 2035.
+  version: 1.0.0
+  contact:
+    name: LegacyHub
+
+servers:
+  - url: /
+    description: Same host (via Nginx proxy to backend)
+
+tags:
+  - name: Devices
+  - name: Telemetry
+  - name: Maintenance
+  - name: Dashboard
+
+paths:
+  /api/devices:
+    get:
+      tags: [Devices]
+      summary: List all devices
+      operationId: listDevices
+      responses:
+        '200':
+          description: Device list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Devices]
+      summary: Register a device by IP address
+      operationId: createDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCreate'
+            example:
+              ip_address: 192.168.10.50
+              name: Pump Delta-04
+              type: Custom IoT Device
+              ingress: API Ingestion
+              status: STANDBY
+              icon: fa-microchip
+      responses:
+        '201':
+          description: Device created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceCreated'
+        '400':
+          $ref: '#/components/responses/ClientError'
+        '409':
+          $ref: '#/components/responses/ClientError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/devices/{deviceId}:
+    parameters:
+      - $ref: '#/components/parameters/DeviceId'
+    put:
+      tags: [Devices]
+      summary: Update device metadata
+      operationId: updateDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceUpdate'
+      responses:
+        '200':
+          description: Device updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceUpdated'
+        '400':
+          $ref: '#/components/responses/ClientError'
+        '404':
+          $ref: '#/components/responses/ClientError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Devices]
+      summary: Delete device (cascades telemetry and maintenance)
+      operationId: deleteDevice
+      responses:
+        '200':
+          description: Device deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceDeleted'
+        '404':
+          $ref: '#/components/responses/ClientError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/telemetry:
+    get:
+      tags: [Telemetry]
+      summary: Query telemetry history
+      operationId: listTelemetry
+      parameters:
+        - name: device_id
+          in: query
+          description: Filter by device IPv4 address
+          schema:
+            type: string
+            example: 192.168.10.101
+        - name: limit
+          in: query
+          description: Max records (1–500, default 50)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 50
+      responses:
+        '200':
+          description: Telemetry records (oldest first)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Telemetry'
+        '400':
+          $ref: '#/components/responses/ClientError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Telemetry]
+      summary: Ingest telemetry for a registered device
+      operationId: createTelemetry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelemetryCreate'
+            example:
+              device_id: 192.168.10.101
+              vibration_index: 4.5
+              temperature: 65.0
+              power_consumption_kw: 12.5
+              operating_hours: 230.5
+              status: RUNNING
+      responses:
+        '200':
+          description: Telemetry accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetryAccepted'
+        '400':
+          $ref: '#/components/responses/ClientError'
+        '404':
+          $ref: '#/components/responses/ClientError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/maintenance:
+    get:
+      tags: [Maintenance]
+      summary: List maintenance events
+      operationId: listMaintenance
+      responses:
+        '200':
+          description: Maintenance events sorted by scheduled date
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Maintenance'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Maintenance]
+      summary: Create maintenance event
+      operationId: createMaintenance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenanceCreate'
+            example:
+              device_id: 192.168.10.101
+              title: Scheduled Calibration
+              description: Routine sensor re-calibration.
+              technician: Markus Rühl
+              priority: routine
+              scheduled: '2026-06-15 14:00:00'
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceCreated'
+        '400':
+          $ref: '#/components/responses/ClientError'
+        '404':
+          $ref: '#/components/responses/ClientError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/maintenance/{eventId}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema:
+          type: integer
+        example: 1
+    put:
+      tags: [Maintenance]
+      summary: Update maintenance event
+      operationId: updateMaintenance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaintenanceUpdate'
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceUpdated'
+        '400':
+          $ref: '#/components/responses/ClientError'
+        '404':
+          $ref: '#/components/responses/ClientError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Maintenance]
+      summary: Delete maintenance event
+      operationId: deleteMaintenance
+      responses:
+        '200':
+          description: Event deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceDeleted'
+        '404':
+          $ref: '#/components/responses/ClientError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Dashboard aggregate statistics
+      operationId: getDashboard
+      responses:
+        '200':
+          description: Aggregated dashboard payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  parameters:
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      description: Device IPv4 address (used as primary key)
+      schema:
+        type: string
+        example: 192.168.10.101
+
+  schemas:
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          description: IPv4 address
+          example: 192.168.10.101
+        name:
+          type: string
+        type:
+          type: string
+        ingress:
+          type: string
+        status:
+          type: string
+          enum: [RUNNING, STANDBY, OFFLINE]
+        icon:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        telemetry_count:
+          type: integer
+        last_vibration:
+          type: number
+          nullable: true
+        last_seen:
+          type: string
+          format: date-time
+          nullable: true
+
+    DeviceCreate:
+      type: object
+      required: [ip_address, name]
+      properties:
+        ip_address:
+          type: string
+          example: 192.168.10.50
+        name:
+          type: string
+        type:
+          type: string
+          default: Custom IoT Device
+        ingress:
+          type: string
+          default: API Ingestion
+        status:
+          type: string
+          enum: [RUNNING, STANDBY, OFFLINE]
+          default: STANDBY
+        icon:
+          type: string
+          default: fa-microchip
+
+    DeviceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        ingress:
+          type: string
+        status:
+          type: string
+          enum: [RUNNING, STANDBY, OFFLINE]
+        icon:
+          type: string
+
+    DeviceCreated:
+      type: object
+      properties:
+        status:
+          type: string
+          example: CREATED
+        device_id:
+          type: string
+        ip_address:
+          type: string
+
+    DeviceUpdated:
+      type: object
+      properties:
+        status:
+          type: string
+          example: UPDATED
+        device_id:
+          type: string
+
+    DeviceDeleted:
+      type: object
+      properties:
+        status:
+          type: string
+          example: DELETED
+        device_id:
+          type: string
+
+    Telemetry:
+      type: object
+      properties:
+        id:
+          type: integer
+        device_id:
+          type: string
+        device_name:
+          type: string
+        vibration_index:
+          type: number
+        temperature:
+          type: number
+        power_consumption_kw:
+          type: number
+        operating_hours:
+          type: number
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    TelemetryCreate:
+      type: object
+      required: [device_id]
+      properties:
+        device_id:
+          type: string
+          example: 192.168.10.101
+        vibration_index:
+          type: number
+          default: 0
+        temperature:
+          type: number
+          default: 0
+        power_consumption_kw:
+          type: number
+          default: 0
+        operating_hours:
+          type: number
+          default: 0
+        status:
+          type: string
+          default: RUNNING
+
+    TelemetryAccepted:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ACCEPTED
+        device:
+          type: string
+        vibration_index:
+          type: number
+        temperature:
+          type: number
+        power_consumption_kw:
+          type: number
+        operating_hours:
+          type: number
+        timestamp:
+          type: string
+        error:
+          type: string
+          nullable: true
+
+    Maintenance:
+      type: object
+      properties:
+        id:
+          type: integer
+        device_id:
+          type: string
+        device_name:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        technician:
+          type: string
+        priority:
+          type: string
+          enum: [routine, medium, immediate, low]
+        scheduled:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    MaintenanceCreate:
+      type: object
+      required: [device_id, title, scheduled]
+      properties:
+        device_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        technician:
+          type: string
+        priority:
+          type: string
+          enum: [routine, medium, immediate, low]
+          default: routine
+        scheduled:
+          type: string
+          description: ISO or `YYYY-MM-DD HH:MM:SS` (year 2020–2035)
+          example: '2026-06-15 14:00:00'
+
+    MaintenanceUpdate:
+      type: object
+      properties:
+        device_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        technician:
+          type: string
+        priority:
+          type: string
+          enum: [routine, medium, immediate, low]
+        scheduled:
+          type: string
+
+    MaintenanceCreated:
+      type: object
+      properties:
+        status:
+          type: string
+          example: CREATED
+        id:
+          type: integer
+
+    MaintenanceUpdated:
+      type: object
+      properties:
+        status:
+          type: string
+          example: UPDATED
+        id:
+          type: integer
+
+    MaintenanceDeleted:
+      type: object
+      properties:
+        status:
+          type: string
+          example: DELETED
+        id:
+          type: integer
+
+    Dashboard:
+      type: object
+      properties:
+        total_devices:
+          type: integer
+        active_devices:
+          type: integer
+        standby_devices:
+          type: integer
+        total_telemetry:
+          type: integer
+        avg_vibration:
+          type: number
+        avg_temperature:
+          type: number
+        avg_power_consumption:
+          type: number
+        avg_operating_hours:
+          type: number
+        pending_maintenance:
+          type: integer
+        history:
+          type: array
+          items:
+            type: object
+        upcoming_maintenance:
+          type: array
+          items:
+            $ref: '#/components/schemas/Maintenance'
+
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        status:
+          type: string
+          example: ERROR
+        error:
+          type: string
+        code:
+          type: integer
+
+  responses:
+    ClientError:
+      description: Invalid request or resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ServerError:
+      description: Internal or database error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'

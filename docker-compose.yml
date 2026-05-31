@@ -6,6 +6,8 @@ services:
     volumes:
       - /var/app/current/frontend/nginx.conf:/etc/nginx/conf.d/default.conf
       - /var/app/current/frontend/index.html:/usr/share/nginx/html/index.html
+      - /var/app/current/frontend/docs.html:/usr/share/nginx/html/docs.html
+      - /var/app/current/frontend/openapi.yaml:/usr/share/nginx/html/openapi.yaml
     depends_on:
       - backend
 
