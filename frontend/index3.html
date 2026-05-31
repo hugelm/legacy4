@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LegacyHub - IoT Control Center</title>
+    <meta name="description" content="LegacyHub - Dynamic IoT Control Center with real-time telemetry monitoring, device management, and maintenance scheduling.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* ============================================
+           DESIGN SYSTEM — LegacyHub Premium
+           ============================================ */
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #141929;
+            --bg-tertiary: #060a14;
+            --bg-card: #161b2e;
+            --bg-hover: #1c2240;
+            --bg-input: #0d1120;
+            --accent: #00d4ff;
+            --accent-dim: rgba(0, 212, 255, 0.12);
+            --accent-border: rgba(0, 212, 255, 0.2);
+            --accent-glow: rgba(0, 212, 255, 0.08);
+            --accent-secondary: #7c5cfc;
+            --accent-secondary-dim: rgba(124, 92, 252, 0.12);
+            --text-main: #eef2ff;
+            --text-secondary: #a0aec0;
+            --text-muted: #5a6b85;
+            --success: #00e68a;
+            --success-dim: rgba(0, 230, 138, 0.1);
+            --success-border: rgba(0, 230, 138, 0.2);
+            --warning: #ffb347;
+            --warning-dim: rgba(255, 179, 71, 0.1);
+            --warning-border: rgba(255, 179, 71, 0.2);
+            --danger: #ff5c75;
+            --danger-dim: rgba(255, 92, 117, 0.1);
+            --danger-border: rgba(255, 92, 117, 0.2);
+            --sidebar-w: 272px;
+            --header-h: 68px;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-fast: all 0.15s ease;
+            --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.35);
+            --shadow-glow: 0 0 30px rgba(0, 212, 255, 0.06);
+            --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--accent-border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
+
+        /* ============ SIDEBAR ============ */
+        aside {
+            width: var(--sidebar-w);
+            background: linear-gradient(180deg, var(--bg-tertiary) 0%, var(--bg-primary) 100%);
+            border-right: 1px solid rgba(255,255,255,0.04);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; bottom: 0; left: 0;
+            z-index: 100;
+            padding: 28px 20px;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 44px;
+            padding-left: 8px;
+        }
+
+        .sidebar-brand-icon {
+            width: 42px; height: 42px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; color: white;
+            box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+        }
+
+        .sidebar-brand h1 {
+            font-size: 1.35rem; font-weight: 800; letter-spacing: -0.5px;
+        }
+
+        .sidebar-section-label {
+            font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--text-muted);
+            padding: 0 12px; margin-bottom: 10px; margin-top: 8px;
+        }
+
+        .sidebar-menu { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+
+        .sidebar-item a {
+            display: flex; align-items: center; gap: 14px;
+            padding: 12px 14px; color: var(--text-secondary); text-decoration: none;
+            border-radius: var(--radius-sm); font-weight: 500; font-size: 0.9rem;
+            transition: var(--transition); border: 1px solid transparent;
+            position: relative;
+        }
+        .sidebar-item a:hover {
+            color: var(--text-main); background: rgba(255,255,255,0.03);
+        }
+        .sidebar-item.active a {
+            color: var(--text-main);
+            background: linear-gradient(135deg, rgba(0,212,255,0.08), rgba(124,92,252,0.05));
+            border-color: var(--accent-border);
+        }
+        .sidebar-item.active a::before {
+            content: '';
+            position: absolute; left: -20px; top: 50%; transform: translateY(-50%);
+            width: 3px; height: 24px; border-radius: 0 3px 3px 0;
+            background: linear-gradient(180deg, var(--accent), var(--accent-secondary));
+        }
+        .sidebar-item.active a i { color: var(--accent); }
+        .sidebar-item a i { width: 20px; text-align: center; font-size: 1rem; }
+
+        .sidebar-footer {
+            margin-top: auto; padding: 16px 8px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .sidebar-footer img {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-cyan);
+        }
+        .sidebar-footer-avatar {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.85rem; color: white;
+        }
+        .sidebar-footer-info h4 { font-size: 0.82rem; font-weight: 600; }
+        .sidebar-footer-info p { font-size: 0.7rem; color: var(--text-muted); }
+
+        /* ============ MAIN AREA ============ */
+        main {
+            margin-left: var(--sidebar-w);
+            flex-grow: 1; min-height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            height: var(--header-h);
+            background: rgba(10, 14, 26, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            padding: 0 36px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 90;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .header-left h2 { font-size: 1.15rem; font-weight: 700; }
+        .header-breadcrumb {
+            font-size: 0.75rem; color: var(--text-muted);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+
+        .status-pill {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+        }
+        .status-pill.online {
+            background: var(--success-dim); border: 1px solid var(--success-border); color: var(--success);
+        }
+        .status-dot {
+            width: 7px; height: 7px; border-radius: 50%; background: var(--success);
+            box-shadow: 0 0 8px var(--success); animation: pulse 1.8s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0,230,138,0.6); }
+            70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(0,230,138,0); }
+            100% { transform: scale(0.95); }
+        }
+
+        .header-clock {
+            font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-secondary);
+            background: var(--bg-secondary); padding: 6px 12px; border-radius: var(--radius-sm);
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+
+        /* ============ CONTENT ============ */
+        .content-body {
+            padding: 32px 36px; flex-grow: 1;
+            display: flex; flex-direction: column; gap: 28px;
+        }
+
+        .dashboard-view {
+            display: none; flex-direction: column; gap: 28px;
+            animation: viewFadeIn 0.35s ease;
+        }
+        .dashboard-view.active { display: flex; }
+
+        @keyframes viewFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ============ STATS GRID ============ */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .stat-card {
+            background: var(--bg-card); border: 1px solid rgba(255,255,255,0.04);
+            border-radius: var(--radius-lg); padding: 24px;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: var(--transition); position: relative; overflow: hidden;
+        }
+        .stat-card::after {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-border), transparent);
+            opacity: 0; transition: var(--transition);
+        }
+        .stat-card:hover { border-color: var(--accent-border); transform: translateY(-2px); }
+        .stat-card:hover::after { opacity: 1; }
+        .stat-info { display: flex; flex-direction: column; gap: 6px; }
+        .stat-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+        .stat-value { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.5px; }
+        .stat-value.loading {
+            background: linear-gradient(90deg, var(--bg-hover), var(--bg-card), var(--bg-hover));
+            background-size: 200% 100%; animation: shimmer 1.5s infinite;
+            border-radius: 6px; color: transparent; width: 60px; height: 32px;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .stat-trend { font-size: 0.72rem; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+        .stat-trend.positive { color: var(--success); }
+        .stat-trend.neutral { color: var(--text-muted); }
+        .stat-trend.warning { color: var(--warning); }
+        .stat-icon {
+            width: 50px; height: 50px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+        }
+        .stat-icon.icon-accent {
+            background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border);
+        }
+        .stat-icon.icon-purple {
+            background: var(--accent-secondary-dim); color: var(--accent-secondary);
+            border: 1px solid rgba(124,92,252,0.2);
+        }
+        .stat-icon.icon-success {
+            background: var(--success-dim); color: var(--success); border: 1px solid var(--success-border);
+        }
+        .stat-icon.icon-warning {
+            background: var(--warning-dim); color: var(--warning); border: 1px solid var(--warning-border);
+        }
+
+        /* ============ CARDS ============ */
+        .card {
+            background: var(--bg-card); border: 1px solid rgba(255,255,255,0.04);
+            border-radius: var(--radius-xl); padding: 28px;
+            box-shadow: var(--shadow-card); transition: var(--transition);
+            display: flex; flex-direction: column;
+        }
+        .card.glow {
+            border-color: var(--accent-border);
+            box-shadow: var(--shadow-card), var(--shadow-glow);
+        }
+        .card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 24px;
+        }
+        .card-title-area { display: flex; align-items: center; gap: 12px; }
+        .card-title-area i { color: var(--accent); font-size: 1.1rem; }
+        .card-title { font-size: 1rem; font-weight: 700; letter-spacing: -0.2px; }
+
+        .widget-grid {
+            display: grid; grid-template-columns: 3fr 2fr; gap: 24px;
+        }
+        @media (max-width: 1200px) { .widget-grid { grid-template-columns: 1fr; } }
+
+        /* ============ BUTTONS ============ */
+        .btn {
+            border: none; padding: 11px 20px; font-weight: 700; font-size: 0.85rem;
+            border-radius: var(--radius-sm); cursor: pointer; transition: var(--transition);
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            font-family: 'Inter', sans-serif; letter-spacing: -0.2px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #00a8e8);
+            color: var(--bg-tertiary); box-shadow: 0 4px 14px rgba(0,212,255,0.2);
+        }
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(0,212,255,0.35); transform: translateY(-1px);
+        }
+        .btn-danger {
+            background: var(--danger); color: white;
+            box-shadow: 0 4px 14px rgba(255,92,117,0.2);
+        }
+        .btn-danger:hover { box-shadow: 0 6px 20px rgba(255,92,117,0.35); transform: translateY(-1px); }
+        .btn-ghost {
+            background: transparent; color: var(--text-secondary);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .btn-ghost:hover { background: rgba(255,255,255,0.04); color: var(--text-main); }
+        .btn-sm { padding: 8px 14px; font-size: 0.78rem; }
+        .btn-icon {
+            width: 36px; height: 36px; padding: 0; border-radius: var(--radius-sm);
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+            color: var(--text-secondary); cursor: pointer; transition: var(--transition);
+            display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem;
+        }
+        .btn-icon:hover { background: rgba(255,255,255,0.08); color: var(--text-main); }
+        .btn-icon.btn-icon-danger:hover { background: var(--danger-dim); color: var(--danger); border-color: var(--danger-border); }
+
+        /* ============ TABLE ============ */
+        .table-wrapper {
+            border-radius: var(--radius-md); overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th {
+            background: var(--bg-tertiary); padding: 14px 20px;
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.8px; color: var(--text-muted);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        td {
+            padding: 14px 20px; font-size: 0.88rem;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(255,255,255,0.015); }
+
+        .device-name-cell { display: flex; align-items: center; gap: 12px; font-weight: 600; }
+        .device-icon {
+            width: 34px; height: 34px; border-radius: 8px;
+            background: var(--accent-dim); display: flex; align-items: center; justify-content: center;
+            color: var(--accent); font-size: 0.85rem;
+        }
+        .device-id-sub { font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); }
+        .td-actions { display: flex; gap: 6px; }
+
+        /* ============ BADGES ============ */
+        .badge {
+            font-size: 0.68rem; padding: 4px 10px; border-radius: 5px;
+            font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .badge-accent { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+        .badge-success { background: var(--success-dim); color: var(--success); border: 1px solid var(--success-border); }
+        .badge-warning { background: var(--warning-dim); color: var(--warning); border: 1px solid var(--warning-border); }
+        .badge-danger { background: var(--danger-dim); color: var(--danger); border: 1px solid var(--danger-border); }
+        .badge-muted { background: rgba(255,255,255,0.04); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08); }
+        .badge-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+        }
+        .badge-dot.dot-success { background: var(--success); box-shadow: 0 0 6px var(--success); }
+        .badge-dot.dot-warning { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+
+        /* ============ CHART ============ */
+        .chart-container { position: relative; width: 100%; }
+
+        /* ============ TERMINAL ============ */
+        .terminal {
+            background: var(--bg-tertiary); border: 1px solid rgba(255,255,255,0.04);
+            border-radius: var(--radius-md); padding: 16px;
+            display: flex; flex-direction: column; gap: 8px; height: 180px;
+        }
+        .terminal-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);
+        }
+        .terminal-dots { display: flex; gap: 5px; }
+        .terminal-dots span { width: 8px; height: 8px; border-radius: 50%; }
+        .terminal-dots .d-r { background: var(--danger); }
+        .terminal-dots .d-y { background: var(--warning); }
+        .terminal-dots .d-g { background: var(--success); }
+        pre.terminal-out {
+            font-family: var(--font-mono); font-size: 0.78rem; color: #38bdf8;
+            overflow-y: auto; flex-grow: 1; white-space: pre-wrap; line-height: 1.6;
+        }
+
+        /* ============ TIMELINE ============ */
+        .timeline { position: relative; padding-left: 26px; display: flex; flex-direction: column; gap: 20px; }
+        .timeline::before {
+            content: ''; position: absolute; left: 5px; top: 4px; bottom: 4px;
+            width: 2px; background: rgba(255,255,255,0.06);
+        }
+        .timeline-item { position: relative; display: flex; flex-direction: column; gap: 6px; }
+        .timeline-dot {
+            position: absolute; left: -26px; top: 4px; width: 12px; height: 12px;
+            border-radius: 50%; background: var(--bg-primary);
+            border: 2.5px solid var(--accent); box-shadow: 0 0 8px var(--accent);
+        }
+        .timeline-dot.dot-warn { border-color: var(--warning); box-shadow: 0 0 8px var(--warning); }
+        .timeline-dot.dot-danger { border-color: var(--danger); box-shadow: 0 0 8px var(--danger); }
+        .timeline-dot.dot-muted { border-color: var(--text-muted); box-shadow: none; }
+        .timeline-time {
+            font-size: 0.72rem; color: var(--text-muted); font-weight: 600;
+            font-family: var(--font-mono);
+        }
+        .timeline-body {
+            background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.03);
+            border-radius: var(--radius-sm); padding: 14px 18px;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+            transition: var(--transition);
+        }
+        .timeline-body:hover { background: rgba(255,255,255,0.04); border-color: var(--accent-border); }
+        .timeline-title { font-size: 0.88rem; font-weight: 600; }
+        .timeline-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+        .timeline-actions { display: flex; align-items: center; gap: 8px; }
+
+        /* ============ EMPTY STATE ============ */
+        .empty-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 60px 20px; text-align: center; gap: 16px;
+        }
+        .empty-state-icon {
+            width: 80px; height: 80px; border-radius: 20px;
+            background: linear-gradient(135deg, var(--accent-dim), var(--accent-secondary-dim));
+            border: 1px solid var(--accent-border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem; color: var(--accent);
+            animation: floatIcon 3s ease-in-out infinite;
+        }
+        @keyframes floatIcon {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .empty-state h3 { font-size: 1.1rem; font-weight: 700; }
+        .empty-state p { font-size: 0.88rem; color: var(--text-muted); max-width: 360px; line-height: 1.5; }
+
+        /* ============ MODAL (Glassmorphism) ============ */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+            z-index: 1000; align-items: center; justify-content: center;
+            animation: modalOverlayIn 0.2s ease;
+        }
+        .modal-overlay.show { display: flex; }
+        @keyframes modalOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .modal {
+            background: var(--bg-card); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius-xl); padding: 32px;
+            width: 90%; max-width: 520px; box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+            animation: modalSlideIn 0.3s ease;
+        }
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: translateY(16px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .modal-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+        .modal-title i { color: var(--accent); }
+
+        /* ============ FORMS ============ */
+        .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+        .form-label {
+            font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .form-input, .form-select, .form-textarea {
+            background: var(--bg-input); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius-sm); padding: 11px 14px;
+            color: var(--text-main); font-size: 0.9rem; font-family: 'Inter', sans-serif;
+            transition: var(--transition); outline: none; width: 100%;
+        }
+        .form-textarea { resize: vertical; min-height: 70px; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--accent-border);
+            box-shadow: 0 0 0 3px rgba(0,212,255,0.08);
+        }
+        .form-input::placeholder { color: var(--text-muted); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px; }
+
+        /* ============ TOAST ============ */
+        .toast-container {
+            position: fixed; top: 24px; right: 24px; z-index: 2000;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .toast {
+            background: var(--bg-card); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius-md); padding: 14px 20px;
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            animation: toastIn 0.35s ease;
+            min-width: 300px; font-size: 0.88rem;
+        }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.success i { color: var(--success); }
+        .toast.error { border-left: 3px solid var(--danger); }
+        .toast.error i { color: var(--danger); }
+        .toast.info { border-left: 3px solid var(--accent); }
+        .toast.info i { color: var(--accent); }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(40px); }
+        }
+
+        /* ============ TOGGLE SWITCH ============ */
+        .switch { position: relative; display: inline-block; width: 38px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider-toggle {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-tertiary); border: 1px solid rgba(255,255,255,0.08);
+            transition: .3s; border-radius: 20px;
+        }
+        .slider-toggle:before {
+            position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px;
+            background: var(--text-muted); transition: .3s; border-radius: 50%;
+        }
+        input:checked + .slider-toggle {
+            background: var(--accent-dim); border-color: var(--accent-border);
+        }
+        input:checked + .slider-toggle:before {
+            transform: translateX(18px); background: var(--accent);
+            box-shadow: 0 0 6px var(--accent);
+        }
+
+        /* ============ SIM GRID ============ */
+        .sim-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .sim-grid { grid-template-columns: 1fr; } }
+        .sim-actions { display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+
+        /* ============ SECURITY GRID ============ */
+        .security-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        @media (max-width: 900px) { .security-grid { grid-template-columns: 1fr; } }
+        .sec-card {
+            background: var(--bg-primary); border: 1px solid rgba(255,255,255,0.04);
+            border-radius: var(--radius-md); padding: 22px;
+            display: flex; flex-direction: column; gap: 12px; transition: var(--transition);
+        }
+        .sec-card:hover { border-color: var(--accent-border); transform: translateY(-1px); }
+        .sec-card-head { display: flex; align-items: center; gap: 10px; }
+        .sec-card-head i { font-size: 1.15rem; }
+        .sec-card-head.ok i { color: var(--success); }
+        .sec-card-head.info i { color: var(--accent); }
+        .sec-card-title { font-size: 0.85rem; font-weight: 600; }
+        .sec-card-val { font-size: 1.1rem; font-weight: 700; }
+        .sec-card-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.45; }
+        .sec-card-foot { font-size: 0.72rem; color: var(--text-muted); margin-top: auto; display: flex; align-items: center; gap: 6px; }
+
+        /* ============ CONFIRM DIALOG ============ */
+        .confirm-text { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px; }
+        .confirm-text strong { color: var(--danger); }
+    </style>
+</head>
+<body>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <div class="modal-overlay" id="modal-device">
+        <div class="modal">
+            <div class="modal-title"><i class="fa-solid fa-plus-circle"></i> <span id="modal-device-title">Register New Device</span></div>
+            <form id="form-device" onsubmit="return false;">
+                <input type="hidden" id="device-edit-mode" value="create">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="device-id">Device ID</label>
+                        <input class="form-input" id="device-id" placeholder="e.g., sensor-alpha-1" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="device-name">Display Name</label>
+                        <input class="form-input" id="device-name" placeholder="e.g., Main Sensor A1" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="device-type">Device Type</label>
+                        <select class="form-select" id="device-type">
+                            <option value="Custom IoT Device">Custom IoT Device</option>
+                            <option value="Modbus RTU Bridge">Modbus RTU Bridge</option>
+                            <option value="OPC-UA Embedded Link">OPC-UA Embedded Link</option>
+                            <option value="EtherNet/IP Gateway">EtherNet/IP Gateway</option>
+                            <option value="MQTT Broker Node">MQTT Broker Node</option>
+                            <option value="BACnet Controller">BACnet Controller</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="device-ingress">Ingress Point</label>
+                        <select class="form-select" id="device-ingress">
+                            <option value="API Ingestion">API Ingestion</option>
+                            <option value="NGINX Reverse Proxy">NGINX Reverse Proxy</option>
+                            <option value="Direct Backend Node">Direct Backend Node</option>
+                            <option value="Edge Gateway">Edge Gateway</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="device-status">Status</label>
+                        <select class="form-select" id="device-status">
+                            <option value="RUNNING">Running</option>
+                            <option value="STANDBY">Standby</option>
+                            <option value="OFFLINE">Offline</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="device-icon">Icon</label>
+                        <select class="form-select" id="device-icon">
+                            <option value="fa-microchip">Microchip</option>
+                            <option value="fa-bolt">Bolt</option>
+                            <option value="fa-network-wired">Network</option>
+                            <option value="fa-cube">Cube</option>
+                            <option value="fa-server">Server</option>
+                            <option value="fa-satellite-dish">Satellite</option>
+                            <option value="fa-temperature-half">Temperature</option>
+                            <option value="fa-fan">Fan</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-ghost" onclick="closeModal('modal-device')">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="btn-device-submit" onclick="submitDevice()">
+                        <i class="fa-solid fa-check"></i> Create Device
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-maintenance">
+        <div class="modal">
+            <div class="modal-title"><i class="fa-solid fa-calendar-plus"></i> <span id="modal-maint-title">New Maintenance Event</span></div>
+            <form id="form-maintenance" onsubmit="return false;">
+                <input type="hidden" id="maint-edit-mode" value="create">
+                <input type="hidden" id="maint-edit-id" value="">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="maint-device">Device</label>
+                        <select class="form-select" id="maint-device" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="maint-priority">Priority</label>
+                        <select class="form-select" id="maint-priority">
+                            <option value="routine">Routine</option>
+                            <option value="medium">Medium</option>
+                            <option value="immediate">Immediate</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="form-group">
+                        <label class="form-label" for="maint-title">Title</label>
+                        <input class="form-input" id="maint-title" placeholder="e.g., Sensor Calibration" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="maint-desc">Description</label>
+                    <textarea class="form-textarea" id="maint-desc" placeholder="Optional: Maintenance details..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="maint-technician">Technician</label>
+                        <input class="form-input" id="maint-technician" placeholder="e.g., John D.">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="maint-date">Date & Time</label>
+                        <input class="form-input" id="maint-date" type="datetime-local" required>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-ghost" onclick="closeModal('modal-maintenance')">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="btn-maint-submit" onclick="submitMaintenance()">
+                        <i class="fa-solid fa-check"></i> Create Event
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-confirm">
+        <div class="modal" style="max-width: 420px;">
+            <div class="modal-title"><i class="fa-solid fa-triangle-exclamation" style="color: var(--danger);"></i> Confirm Action</div>
+            <p class="confirm-text" id="confirm-text">Are you sure you want to delete this item?</p>
+            <div class="form-actions">
+                <button type="button" class="btn btn-ghost" onclick="closeModal('modal-confirm')">Cancel</button>
+                <button type="button" class="btn btn-danger" id="btn-confirm-action" onclick="confirmAction()">
+                    <i class="fa-solid fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <aside>
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-icon"><i class="fa-solid fa-microchip"></i></div>
+            <h1>LegacyHub</h1>
+        </div>
+
+        <div class="sidebar-section-label">Navigation</div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item active" data-tab="overview">
+                <a href="#overview"><i class="fa-solid fa-chart-line"></i>Machine Overview</a>
+            </li>
+            <li class="sidebar-item" data-tab="telemetry">
+                <a href="#telemetry"><i class="fa-solid fa-satellite-dish"></i>Telemetry Stream</a>
+            </li>
+            <li class="sidebar-item" data-tab="maintenance">
+                <a href="#maintenance"><i class="fa-solid fa-calendar-days"></i>Maintenance</a>
+            </li>
+            <li class="sidebar-item" data-tab="security">
+                <a href="#security"><i class="fa-solid fa-shield-halved"></i>Security</a>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+           <img src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.gaeubote.de%2FBilder%2FMarkus-Ruehl-beim-Bodybuilding-Event-der-Firma-McShape-in-g10209.jpg&f=1&nofb=1&ipt=2629003cf56a528ca613b1a7bdb73ca6cb41e6e935833002313ede29635fb3d5" alt="Profile Picture">
+            <div class="sidebar-footer-info">
+                <h4>Markus Rühl</h4>
+                <p>Lead Operator & Machine</p>
+            </div>
+        </div>
+    </aside>
+
+    <main>
+        <header>
+            <div class="header-left">
+                <h2 id="view-title">Machine Overview</h2>
+                <span class="header-breadcrumb"><i class="fa-solid fa-chevron-right"></i> LegacyHub</span>
+            </div>
+            <div class="header-right">
+                <div class="status-pill online"><span class="status-dot"></span> System Online</div>
+                <div class="header-clock" id="header-clock">--:--:--</div>
+            </div>
+        </header>
+
+        <div class="content-body">
+
+            <div id="view-overview" class="dashboard-view active">
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <span class="stat-label">Registered Devices</span>
+                            <span class="stat-value" id="stat-total">0</span>
+                            <span class="stat-trend neutral" id="stat-total-trend">No Devices</span>
+                        </div>
+                        <div class="stat-icon icon-accent"><i class="fa-solid fa-industry"></i></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <span class="stat-label">Active Transmitters</span>
+                            <span class="stat-value" id="stat-active">0</span>
+                            <span class="stat-trend neutral" id="stat-active-trend">—</span>
+                        </div>
+                        <div class="stat-icon icon-success"><i class="fa-solid fa-signal"></i></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <span class="stat-label">Telemetry Entries</span>
+                            <span class="stat-value" id="stat-telemetry">0</span>
+                            <span class="stat-trend neutral" id="stat-telemetry-trend">—</span>
+                        </div>
+                        <div class="stat-icon icon-purple"><i class="fa-solid fa-chart-simple"></i></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <span class="stat-label">Avg Vibration</span>
+                            <span class="stat-value" id="stat-vibration">0.0</span>
+                            <span class="stat-trend neutral" id="stat-vibration-trend">mm/s</span>
+                        </div>
+                        <div class="stat-icon icon-warning"><i class="fa-solid fa-wave-square"></i></div>
+                    </div>
+                </div>
+
+                <div class="widget-grid">
+                    <div class="card glow">
+                        <div class="card-header">
+                            <div class="card-title-area">
+                                <i class="fa-solid fa-wave-square"></i>
+                                <span class="card-title">Live Telemetry</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span style="font-size:0.78rem; color:var(--text-muted);">Auto-Refresh</span>
+                                <label class="switch"><input type="checkbox" id="realtime-toggle" checked><span class="slider-toggle"></span></label>
+                            </div>
+                        </div>
+                        <div class="chart-container" style="height:240px;">
+                            <canvas id="overviewChart"></canvas>
+                        </div>
+                        <div id="overview-chart-empty" class="empty-state" style="display:none; padding:40px 20px;">
+                            <div class="empty-state-icon" style="width:60px;height:60px;font-size:1.4rem;border-radius:14px;"><i class="fa-solid fa-chart-area"></i></div>
+                            <p style="font-size:0.82rem;">No telemetry data available yet. Send data via the Telemetry Stream.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title-area">
+                                <i class="fa-solid fa-clock"></i>
+                                <span class="card-title">Next Maintenance</span>
+                            </div>
+                            <span style="font-size:0.78rem; color:var(--accent); cursor:pointer;" onclick="switchTab('maintenance')">Show All</span>
+                        </div>
+                        <div id="overview-maintenance-list" class="timeline"></div>
+                        <div id="overview-maintenance-empty" class="empty-state" style="display:none; padding:30px 20px;">
+                            <div class="empty-state-icon" style="width:50px;height:50px;font-size:1.1rem;border-radius:12px;"><i class="fa-solid fa-calendar-check"></i></div>
+                            <p style="font-size:0.82rem;">No scheduled maintenance tasks.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-area">
+                            <i class="fa-solid fa-server"></i>
+                            <span class="card-title">Device Fleet</span>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="openDeviceModal('create')">
+                            <i class="fa-solid fa-plus"></i> Add Device
+                        </button>
+                    </div>
+                    <div id="device-table-area">
+                        <div class="table-wrapper">
+                            <table>
+                                <thead><tr>
+                                    <th>Device</th><th>Status</th><th>Vibration</th><th>Type</th><th>Ingress</th><th style="width:100px;">Actions</th>
+                                </tr></thead>
+                                <tbody id="device-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="device-empty" class="empty-state" style="display:none;">
+                        <div class="empty-state-icon"><i class="fa-solid fa-microchip"></i></div>
+                        <h3>No devices registered yet</h3>
+                        <p>Add your first IoT device to receive telemetry data and populate the dashboard.</p>
+                        <button class="btn btn-primary" onclick="openDeviceModal('create')"><i class="fa-solid fa-plus"></i> Create First Device</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-telemetry" class="dashboard-view">
+                <div class="card glow">
+                    <div class="card-header">
+                        <div class="card-title-area">
+                            <i class="fa-solid fa-satellite-dish"></i>
+                            <span class="card-title">Telemetry Stream Simulator</span>
+                        </div>
+                    </div>
+                    <p style="font-size:0.88rem; color:var(--text-muted); line-height:1.6; margin-bottom:24px; max-width:800px;">
+                        Simulate machine data for registered devices. The data is routed through the reverse proxy to the microservice, which stores it in the SQLite database.
+                    </p>
+
+                    <div class="chart-container" style="height:280px; margin-bottom:24px;">
+                        <canvas id="streamChart"></canvas>
+                    </div>
+                    <div id="stream-chart-empty" class="empty-state" style="display:none; padding:40px 20px;">
+                        <div class="empty-state-icon" style="width:60px;height:60px;font-size:1.4rem;border-radius:14px;"><i class="fa-solid fa-chart-line"></i></div>
+                        <p style="font-size:0.82rem;">Please register a device first and send telemetry data.</p>
+                    </div>
+
+                    <div class="sim-grid">
+                        <div class="sim-actions">
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label class="form-label" for="sim-device-select">Target Device</label>
+                                <select class="form-select" id="sim-device-select">
+                                    <option value="">— No device registered —</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" onclick="sendTelemetry(true)" id="btn-send-valid">
+                                <i class="fa-solid fa-paper-plane"></i> Send Valid Data
+                            </button>
+                            <button class="btn btn-danger" onclick="sendTelemetry(false)" id="btn-send-invalid">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Trigger API Error
+                            </button>
+                            <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--bg-tertiary); border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,0.04);">
+                                <span style="font-size:0.82rem; color:var(--text-muted);">Auto-Simulation (3s)</span>
+                                <label class="switch"><input type="checkbox" id="sim-auto-toggle"><span class="slider-toggle"></span></label>
+                            </div>
+                        </div>
+                        <div class="terminal">
+                            <div class="terminal-bar">
+                                <div class="terminal-dots"><span class="d-r"></span><span class="d-y"></span><span class="d-g"></span></div>
+                                <span>api_v3_console.log</span>
+                            </div>
+                            <pre id="terminal-output" class="terminal-out">> Console initialized. Waiting for telemetry payloads...</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-maintenance" class="dashboard-view">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-area">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            <span class="card-title">Maintenance Planning</span>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="openMaintenanceModal('create')">
+                            <i class="fa-solid fa-plus"></i> Create Event
+                        </button>
+                    </div>
+                    <div id="maintenance-timeline" class="timeline" style="padding-left:30px; margin:10px 0;"></div>
+                    <div id="maintenance-empty" class="empty-state" style="display:none;">
+                        <div class="empty-state-icon"><i class="fa-solid fa-calendar-check"></i></div>
+                        <h3>No Maintenance Events</h3>
+                        <p>Create a maintenance event for one of your registered devices.</p>
+                        <button class="btn btn-primary" onclick="openMaintenanceModal('create')"><i class="fa-solid fa-plus"></i> Create First Event</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-security" class="dashboard-view">
+                <div class="card glow">
+                    <div class="card-header">
+                        <div class="card-title-area">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span class="card-title">Platform Security Overview</span>
+                        </div>
+                    </div>
+                    <div class="security-grid">
+                        <div class="sec-card">
+                            <div class="sec-card-head ok"><i class="fa-solid fa-circle-check"></i><span class="sec-card-title">ISO27001 Security Standard</span></div>
+                            <span class="sec-card-val" style="color:var(--success);">ACTIVE CERTIFICATION</span>
+                            <p class="sec-card-desc">LegacyHub runs on military-grade ISO/IEC 27001 data standard, securing telemetry ingress nodes with audited controls.</p>
+                            <div class="sec-card-foot"><i class="fa-solid fa-lock"></i> Checked: Active Session</div>
+                        </div>
+                        <div class="sec-card">
+                            <div class="sec-card-head ok"><i class="fa-solid fa-circle-check"></i><span class="sec-card-title">GDPR Data Compliance</span></div>
+                            <span class="sec-card-val" style="color:var(--success);">100% COMPLIANT</span>
+                            <p class="sec-card-desc">PII scrubbed automatically at the reverse-proxy layer. Ingested datasets contain strictly non-attributable IoT sensor telemetry.</p>
+                            <div class="sec-card-foot"><i class="fa-solid fa-user-shield"></i> Audited May 2026</div>
+                        </div>
+                        <div class="sec-card">
+                            <div class="sec-card-head info"><i class="fa-solid fa-key"></i><span class="sec-card-title">Military-Grade Encryption</span></div>
+                            <span class="sec-card-val">AES-256 Enabled</span>
+                            <p class="sec-card-desc">Ingress stream payloads are encrypted using SHA-256 handshake. TLS 1.3 forced across all WebSocket and HTTP routes.</p>
+                            <div class="sec-card-foot"><i class="fa-solid fa-certificate"></i> Active Keys Re-Rolled Daily</div>
+                        </div>
+                        <div class="sec-card">
+                            <div class="sec-card-head info"><i class="fa-solid fa-database"></i><span class="sec-card-title">Database Engine</span></div>
+                            <span class="sec-card-val">SQLite (WAL Mode)</span>
+                            <p class="sec-card-desc">Persistent local database with Write-Ahead Logging. Data survives container restarts via Docker named volumes.</p>
+                            <div class="sec-card-foot"><i class="fa-solid fa-hard-drive"></i> <span id="sec-db-stats">Loading...</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // ============================
+        // Config & State
+        // ============================
+        const API_BASE = '/api/v3';
+        let cachedDevices = [];
+        let pendingConfirmCallback = null;
+        let simInterval = null;
+
+        // ============================
+        // SPA Navigation
+        // ============================
+        const tabItems = document.querySelectorAll('.sidebar-item');
+        const views = document.querySelectorAll('.dashboard-view');
+        const viewTitle = document.getElementById('view-title');
+
+        const tabNameMap = {
+            'overview': 'Machine Overview',
+            'telemetry': 'Telemetry Stream',
+            'maintenance': 'Maintenance Planning',
+            'security': 'Security & Compliance'
+        };
+
+        function switchTab(tabId) {
+            tabItems.forEach(item => {
+                item.classList.toggle('active', item.dataset.tab === tabId);
+            });
+            views.forEach(view => {
+                view.classList.toggle('active', view.id === `view-${tabId}`);
+            });
+            viewTitle.innerText = tabNameMap[tabId] || 'Dashboard';
+        }
+
+        tabItems.forEach(item => {
+            item.addEventListener('click', e => {
+                e.preventDefault();
+                switchTab(item.dataset.tab);
+            });
+        });
+
+        // ============================
+        // Clock
+        // ============================
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('header-clock').textContent =
+                now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ============================
+        // Toast Notifications
+        // ============================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'toastOut 0.3s ease forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // ============================
+        // Modal Helpers
+        // ============================
+        function openModal(id) { document.getElementById(id).classList.add('show'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        // Close modals on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', e => {
+                if (e.target === overlay) overlay.classList.remove('show');
+            });
+        });
+
+        // ============================
+        // Chart.js Setup
+        // ============================
+        const chartOpts = {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.03)' },
+                    ticks: { color: '#5a6b85', font: { size: 10 }, maxRotation: 0 }
+                },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.03)' },
+                    ticks: { color: '#5a6b85', font: { size: 10 } },
+                    suggestedMin: 0, suggestedMax: 10
+                }
+            },
+            elements: {
+                line: { tension: 0.4 },
+                point: { radius: 3, hoverRadius: 6, backgroundColor: '#00d4ff' }
+            }
+        };
+
+        function makeGradient(ctx) {
+            const g = ctx.createLinearGradient(0, 0, 0, 280);
+            g.addColorStop(0, 'rgba(0,212,255,0.15)');
+            g.addColorStop(1, 'rgba(0,212,255,0)');
+            return g;
+        }
+
+        const ctxOverview = document.getElementById('overviewChart').getContext('2d');
+        const overviewChart = new Chart(ctxOverview, {
+            type: 'line',
+            data: { labels: [], datasets: [{ data: [], borderColor: '#00d4ff', borderWidth: 2, fill: true, backgroundColor: makeGradient(ctxOverview) }] },
+            options: chartOpts
+        });
+
+        const ctxStream = document.getElementById('streamChart').getContext('2d');
+        const streamChart = new Chart(ctxStream, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Vibration (mm/s)', data: [], borderColor: '#00d4ff', borderWidth: 2, fill: true, backgroundColor: makeGradient(ctxStream) }] },
+            options: { ...chartOpts, plugins: { legend: { display: true, labels: { color: '#eef2ff', font: { size: 12 } } } } }
+        });
+
+        // ============================
+        // API Helpers
+        // ============================
+        async function apiGet(path) {
+            const res = await fetch(API_BASE + path);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        }
+        async function apiPost(path, body) {
+            const res = await fetch(API_BASE + path, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            return { status: res.status, data: await res.json() };
+        }
+        async function apiPut(path, body) {
+            const res = await fetch(API_BASE + path, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            return { status: res.status, data: await res.json() };
+        }
+        async function apiDelete(path) {
+            const res = await fetch(API_BASE + path, { method: 'DELETE' });
+            return { status: res.status, data: await res.json() };
+        }
+
+        // ============================
+        // Fetch & Render: Dashboard
+        // ============================
+        async function refreshDashboard() {
+            try {
+                const [dashboard, devices, maintenance] = await Promise.all([
+                    apiGet('/dashboard'),
+                    apiGet('/devices'),
+                    apiGet('/maintenance')
+                ]);
+
+                cachedDevices = devices;
+
+                // Stats
+                document.getElementById('stat-total').textContent = dashboard.total_devices;
+                document.getElementById('stat-active').textContent = dashboard.active_devices;
+                document.getElementById('stat-telemetry').textContent = dashboard.total_telemetry;
+                document.getElementById('stat-vibration').textContent = dashboard.avg_vibration.toFixed(1);
+
+                // Stat trends
+                document.getElementById('stat-total-trend').textContent = dashboard.total_devices > 0 ? `${dashboard.total_devices} registered` : 'No Devices';
+                document.getElementById('stat-total-trend').className = `stat-trend ${dashboard.total_devices > 0 ? 'positive' : 'neutral'}`;
+                document.getElementById('stat-active-trend').textContent = dashboard.active_devices > 0 ? `${dashboard.active_devices} active` : '—';
+                document.getElementById('stat-active-trend').className = `stat-trend ${dashboard.active_devices > 0 ? 'positive' : 'neutral'}`;
+                document.getElementById('stat-telemetry-trend').textContent = dashboard.total_telemetry > 0 ? `${dashboard.total_telemetry} entries` : '—';
+                document.getElementById('stat-vibration-trend').textContent = 'mm/s';
+
+                // Chart
+                const chartEl = document.getElementById('overviewChart').parentElement;
+                const emptyChart = document.getElementById('overview-chart-empty');
+                if (dashboard.history.length > 0) {
+                    chartEl.style.display = 'block';
+                    emptyChart.style.display = 'none';
+                    const labels = dashboard.history.map(e => {
+                        const d = new Date(e.timestamp);
+                        return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                    });
+                    const values = dashboard.history.map(e => e.vibration_index);
+                    overviewChart.data.labels = labels;
+                    overviewChart.data.datasets[0].data = values;
+                    overviewChart.update();
+                } else {
+                    chartEl.style.display = 'none';
+                    emptyChart.style.display = 'flex';
+                }
+
+                // Overview maintenance preview
+                renderOverviewMaintenance(dashboard.upcoming_maintenance);
+
+                // Device table
+                renderDeviceTable(devices);
+
+                // Maintenance full view
+                renderMaintenanceTimeline(maintenance);
+
+                // Update sim device dropdown
+                updateDeviceDropdowns(devices);
+
+                // Security DB stats
+                document.getElementById('sec-db-stats').textContent =
+                    `${dashboard.total_devices} Devices, ${dashboard.total_telemetry} Records`;
+
+            } catch (err) {
+                console.error('[REFRESH ERROR]', err);
+            }
+        }
+
+        // ============================
+        // Render: Device Table
+        // ============================
+        function renderDeviceTable(devices) {
+            const tbody = document.getElementById('device-table-body');
+            const emptyEl = document.getElementById('device-empty');
+            const tableArea = document.getElementById('device-table-area');
+
+            if (devices.length === 0) {
+                tableArea.style.display = 'none';
+                emptyEl.style.display = 'flex';
+                return;
+            }
+
+            tableArea.style.display = 'block';
+            emptyEl.style.display = 'none';
+            tbody.innerHTML = '';
+
+            devices.forEach(d => {
+                const statusMap = {
+                    'RUNNING': '<span class="badge badge-success"><span class="badge-dot dot-success"></span> Transmitting</span>',
+                    'STANDBY': '<span class="badge badge-warning"><span class="badge-dot dot-warning"></span> Standby</span>',
+                    'OFFLINE': '<span class="badge badge-muted">Offline</span>'
+                };
+                const vib = d.last_vibration != null ? d.last_vibration.toFixed(2) : '0.00';
+                const vibColor = d.status === 'RUNNING' ? 'var(--accent)' : 'var(--text-muted)';
+                const icon = d.icon || 'fa-microchip';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div class="device-name-cell">
+                            <div class="device-icon"><i class="fa-solid ${icon}"></i></div>
+                            <div><div>${d.name}</div><div class="device-id-sub">${d.id}</div></div>
+                        </div>
+                    </td>
+                    <td>${statusMap[d.status] || statusMap['STANDBY']}</td>
+                    <td><code style="color:${vibColor}; font-weight:600; font-family:var(--font-mono);">${vib} mm/s</code></td>
+                    <td style="color:var(--text-secondary);">${d.type}</td>
+                    <td style="color:var(--text-secondary);">${d.ingress}</td>
+                    <td>
+                        <div class="td-actions">
+                            <button class="btn-icon" title="Edit" onclick="openDeviceModal('edit','${d.id}')"><i class="fa-solid fa-pen"></i></button>
+                            <button class="btn-icon btn-icon-danger" title="Delete" onclick="confirmDeleteDevice('${d.id}','${d.name}')"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ============================
+        // Render: Overview Maintenance
+        // ============================
+        function renderOverviewMaintenance(items) {
+            const list = document.getElementById('overview-maintenance-list');
+            const emptyEl = document.getElementById('overview-maintenance-empty');
+
+            if (!items || items.length === 0) {
+                list.style.display = 'none';
+                emptyEl.style.display = 'flex';
+                return;
+            }
+
+            list.style.display = 'flex';
+            emptyEl.style.display = 'none';
+            list.innerHTML = '';
+
+            items.slice(0, 3).forEach(m => {
+                const dotClass = m.priority === 'immediate' ? 'dot-danger' : (m.priority === 'medium' ? 'dot-warn' : '');
+                const badgeClass = m.priority === 'immediate' ? 'badge-danger' : (m.priority === 'medium' ? 'badge-warning' : (m.priority === 'low' ? 'badge-muted' : 'badge-accent'));
+                const dateStr = formatDate(m.scheduled);
+                list.innerHTML += `
+                    <div class="timeline-item">
+                        <div class="timeline-dot ${dotClass}"></div>
+                        <div class="timeline-time">${dateStr}</div>
+                        <div class="timeline-body">
+                            <div>
+                                <div class="timeline-title">${m.title}</div>
+                                <div class="timeline-sub">${m.device_name || m.device_id}</div>
+                            </div>
+                            <span class="badge ${badgeClass}">${m.priority}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // ============================
+        // Render: Full Maintenance
+        // ============================
+        function renderMaintenanceTimeline(items) {
+            const tl = document.getElementById('maintenance-timeline');
+            const emptyEl = document.getElementById('maintenance-empty');
+
+            if (!items || items.length === 0) {
+                tl.style.display = 'none';
+                emptyEl.style.display = 'flex';
+                return;
+            }
+
+            tl.style.display = 'flex';
+            emptyEl.style.display = 'none';
+            tl.innerHTML = '';
+
+            items.forEach(m => {
+                const dotClass = m.priority === 'immediate' ? 'dot-danger' : (m.priority === 'medium' ? 'dot-warn' : (m.priority === 'low' ? 'dot-muted' : ''));
+                const badgeClass = m.priority === 'immediate' ? 'badge-danger' : (m.priority === 'medium' ? 'badge-warning' : (m.priority === 'low' ? 'badge-muted' : 'badge-accent'));
+                const dateStr = formatDate(m.scheduled);
+
+                tl.innerHTML += `
+                    <div class="timeline-item">
+                        <div class="timeline-dot ${dotClass}"></div>
+                        <div class="timeline-time">${dateStr}</div>
+                        <div class="timeline-body" style="padding:18px;">
+                            <div style="flex:1;">
+                                <div class="timeline-title" style="font-size:0.95rem;">${m.title}</div>
+                                <div class="timeline-sub" style="font-size:0.82rem; margin-top:4px;">
+                                    Device: <strong>${m.device_name || m.device_id}</strong>${m.technician ? ' | Technician: ' + m.technician : ''}
+                                </div>
+                                ${m.description ? `<p style="font-size:0.78rem; color:var(--text-muted); margin-top:8px; line-height:1.4;">${m.description}</p>` : ''}
+                            </div>
+                            <div class="timeline-actions">
+                                <span class="badge ${badgeClass}">${m.priority}</span>
+                                <button class="btn-icon btn-icon-danger" title="Delete" onclick="confirmDeleteMaintenance(${m.id},'${m.title}')"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // ============================
+        // Device Dropdowns
+        // ============================
+        function updateDeviceDropdowns(devices) {
+            const selects = [document.getElementById('sim-device-select'), document.getElementById('maint-device')];
+            selects.forEach(sel => {
+                if (!sel) return;
+                const currentVal = sel.value;
+                sel.innerHTML = '';
+                if (devices.length === 0) {
+                    sel.innerHTML = '<option value="">— No Devices —</option>';
+                } else {
+                    devices.forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d.id;
+                        opt.textContent = `${d.name} (${d.id})`;
+                        sel.appendChild(opt);
+                    });
+                }
+                // Restore selection if possible
+                if (currentVal && [...sel.options].some(o => o.value === currentVal)) {
+                    sel.value = currentVal;
+                }
+            });
+        }
+
+        // ============================
+        // Device CRUD
+        // ============================
+        function openDeviceModal(mode, deviceId) {
+            document.getElementById('device-edit-mode').value = mode;
+            const title = document.getElementById('modal-device-title');
+            const submitBtn = document.getElementById('btn-device-submit');
+            const idInput = document.getElementById('device-id');
+
+            if (mode === 'edit' && deviceId) {
+                const dev = cachedDevices.find(d => d.id === deviceId);
+                if (!dev) return;
+                title.textContent = 'Edit Device';
+                submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save';
+                idInput.value = dev.id;
+                idInput.disabled = true;
+                document.getElementById('device-name').value = dev.name;
+                document.getElementById('device-type').value = dev.type;
+                document.getElementById('device-ingress').value = dev.ingress;
+                document.getElementById('device-status').value = dev.status;
+                document.getElementById('device-icon').value = dev.icon || 'fa-microchip';
+            } else {
+                title.textContent = 'Register New Device';
+                submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Create Device';
+                idInput.disabled = false;
+                document.getElementById('form-device').reset();
+            }
+            openModal('modal-device');
+        }
+
+        async function submitDevice() {
+            const mode = document.getElementById('device-edit-mode').value;
+            const body = {
+                id: document.getElementById('device-id').value.trim(),
+                name: document.getElementById('device-name').value.trim(),
+                type: document.getElementById('device-type').value,
+                ingress: document.getElementById('device-ingress').value,
+                status: document.getElementById('device-status').value,
+                icon: document.getElementById('device-icon').value
+            };
+
+            if (!body.id || !body.name) {
+                showToast('Please fill in the ID and Name.', 'error');
+                return;
+            }
+
+            try {
+                let result;
+                if (mode === 'edit') {
+                    result = await apiPut(`/devices/${body.id}`, body);
+                } else {
+                    result = await apiPost('/devices', body);
+                }
+
+                if (result.status >= 200 && result.status < 300) {
+                    showToast(mode === 'edit' ? `Device "${body.name}" updated.` : `Device "${body.name}" successfully created!`, 'success');
+                    closeModal('modal-device');
+                    refreshDashboard();
+                } else {
+                    showToast(result.data.error || 'Error saving device.', 'error');
+                }
+            } catch (err) {
+                showToast('Connection error: ' + err.message, 'error');
+            }
+        }
+
+        function confirmDeleteDevice(deviceId, deviceName) {
+            document.getElementById('confirm-text').innerHTML =
+                `Are you sure you want to delete <strong>${deviceName}</strong> (${deviceId})? All associated telemetry data and maintenance events will also be permanently deleted.`;
+            pendingConfirmCallback = async () => {
+                try {
+                    const res = await apiDelete(`/devices/${deviceId}`);
+                    if (res.status === 200) {
+                        showToast(`Device "${deviceName}" deleted.`, 'success');
+                        refreshDashboard();
+                    } else {
+                        showToast(res.data.error || 'Error deleting device.', 'error');
+                    }
+                } catch (err) { showToast('Error: ' + err.message, 'error'); }
+            };
+            openModal('modal-confirm');
+        }
+
+        // ============================
+        // Maintenance CRUD
+        // ============================
+        function openMaintenanceModal(mode, eventId) {
+            document.getElementById('maint-edit-mode').value = mode;
+            document.getElementById('maint-edit-id').value = eventId || '';
+            const title = document.getElementById('modal-maint-title');
+            const submitBtn = document.getElementById('btn-maint-submit');
+
+            if (mode === 'create') {
+                title.textContent = 'New Maintenance Event';
+                submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Create Event';
+                document.getElementById('form-maintenance').reset();
+            }
+            // Ensure dropdown is populated
+            updateDeviceDropdowns(cachedDevices);
+            openModal('modal-maintenance');
+        }
+
+        async function submitMaintenance() {
+            const mode = document.getElementById('maint-edit-mode').value;
+            const body = {
+                device_id: document.getElementById('maint-device').value,
+                title: document.getElementById('maint-title').value.trim(),
+                description: document.getElementById('maint-desc').value.trim(),
+                technician: document.getElementById('maint-technician').value.trim(),
+                priority: document.getElementById('maint-priority').value,
+                scheduled: document.getElementById('maint-date').value
+            };
+
+            if (!body.device_id || !body.title || !body.scheduled) {
+                showToast('Please fill in the Device, Title, and Date.', 'error');
+                return;
+            }
+
+            // Convert datetime-local to ISO format
+            body.scheduled = new Date(body.scheduled).toISOString();
+
+            try {
+                let result;
+                if (mode === 'edit') {
+                    const id = document.getElementById('maint-edit-id').value;
+                    result = await apiPut(`/maintenance/${id}`, body);
+                } else {
+                    result = await apiPost('/maintenance', body);
+                }
+
+                if (result.status >= 200 && result.status < 300) {
+                    showToast(mode === 'edit' ? 'Event updated.' : `Maintenance event "${body.title}" created!`, 'success');
+                    closeModal('modal-maintenance');
+                    refreshDashboard();
+                } else {
+                    showToast(result.data.error || 'Error saving event.', 'error');
+                }
+            } catch (err) {
+                showToast('Connection error: ' + err.message, 'error');
+            }
+        }
+
+        function confirmDeleteMaintenance(eventId, title) {
+            document.getElementById('confirm-text').innerHTML =
+                `Are you sure you want to delete the maintenance event <strong>"${title}"</strong>?`;
+            pendingConfirmCallback = async () => {
+                try {
+                    const res = await apiDelete(`/maintenance/${eventId}`);
+                    if (res.status === 200) {
+                        showToast('Maintenance event deleted.', 'success');
+                        refreshDashboard();
+                    } else {
+                        showToast(res.data.error || 'Error deleting event.', 'error');
+                    }
+                } catch (err) { showToast('Error: ' + err.message, 'error'); }
+            };
+            openModal('modal-confirm');
+        }
+
+        function confirmAction() {
+            closeModal('modal-confirm');
+            if (pendingConfirmCallback) {
+                pendingConfirmCallback();
+                pendingConfirmCallback = null;
+            }
+        }
+
+        // ============================
+        // Telemetry Simulation
+        // ============================
+        async function sendTelemetry(isValid) {
+            const termOut = document.getElementById('terminal-output');
+            const deviceId = document.getElementById('sim-device-select').value;
+
+            if (!deviceId) {
+                showToast('No device selected. Please register a device first.', 'error');
+                return;
+            }
+
+            termOut.textContent = `[LOG] Initiating transaction via NGINX proxy...\n`;
+
+            const payload = isValid
+                ? { device_id: deviceId, vibration_index: parseFloat((4.5 + (Math.random() - 0.5) * 4).toFixed(2)), status: 'RUNNING' }
+                : 'INVALID_STRING_NO_JSON';
+
+            try {
+                const res = await fetch(API_BASE + '/telemetry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: typeof payload === 'string' ? payload : JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                const statusMsg = res.status === 200 ? 'SUCCESS' : 'ERROR';
+                termOut.textContent += `[HTTP] ${res.status} (${statusMsg})\n`;
+                termOut.textContent += `[API]  ${data.status}\n`;
+                termOut.textContent += `[PAYLOAD]\n${JSON.stringify(data, null, 2)}`;
+                termOut.scrollTop = termOut.scrollHeight;
+
+                // Refresh dashboard + telemetry chart
+                refreshDashboard();
+                refreshTelemetryChart();
+
+            } catch (error) {
+                termOut.textContent += `[FAIL] Connection error: ${error}\n`;
+                termOut.scrollTop = termOut.scrollHeight;
+            }
+        }
+
+        async function refreshTelemetryChart() {
+            try {
+                const deviceId = document.getElementById('sim-device-select').value;
+                const query = deviceId ? `?device_id=${deviceId}&limit=25` : '?limit=25';
+                const data = await apiGet('/telemetry' + query);
+
+                const chartEl = document.getElementById('streamChart').parentElement;
+                const emptyChart = document.getElementById('stream-chart-empty');
+
+                if (data.length > 0) {
+                    chartEl.style.display = 'block';
+                    emptyChart.style.display = 'none';
+                    const labels = data.map(e => {
+                        const d = new Date(e.timestamp);
+                        return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                    });
+                    const values = data.map(e => e.vibration_index);
+                    streamChart.data.labels = labels;
+                    streamChart.data.datasets[0].data = values;
+                    streamChart.update();
+                } else {
+                    chartEl.style.display = 'none';
+                    emptyChart.style.display = 'flex';
+                }
+            } catch (err) {
+                console.error('[TELEMETRY CHART ERROR]', err);
+            }
+        }
+
+        // Auto-simulation toggle
+        document.getElementById('sim-auto-toggle').addEventListener('change', e => {
+            if (e.target.checked) {
+                simInterval = setInterval(() => {
+                    if (document.getElementById('realtime-toggle').checked) {
+                        const randomValid = Math.random() > 0.05;
+                        sendTelemetry(randomValid);
+                    }
+                }, 3000);
+            } else {
+                if (simInterval) clearInterval(simInterval);
+                simInterval = null;
+            }
+        });
+
+        // Refresh stream chart when device changes
+        document.getElementById('sim-device-select').addEventListener('change', refreshTelemetryChart);
+
+        // ============================
+        // Date Formatting
+        // ============================
+        function formatDate(dateStr) {
+            const d = new Date(dateStr);
+            const now = new Date();
+            const isToday = d.toDateString() === now.toDateString();
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const isTomorrow = d.toDateString() === tomorrow.toDateString();
+
+            const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+            if (isToday) return `Today, ${timeStr}`;
+            if (isTomorrow) return `Tomorrow, ${timeStr}`;
+            return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + `, ${timeStr}`;
+        }
+
+        // ============================
+        // Initial Load & Polling
+        // ============================
+        refreshDashboard();
+        refreshTelemetryChart();
+
+        // Poll every 3 seconds
+        setInterval(() => {
+            if (document.getElementById('realtime-toggle').checked) {
+                refreshDashboard();
+            }
+        }, 3000);
+    </script>
+</body>
+</html>
