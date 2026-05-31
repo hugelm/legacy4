@@ -885,17 +885,28 @@
                             <i class="fa-solid fa-wave-square"></i>
                             <span class="card-title">Live Telemetry</span>
                         </div>
-                        <div style="display:flex; align-items:center; gap:12px;">
-                            <span style="font-size:0.78rem; color:var(--text-muted);">Auto-Refresh</span>
-                            <label class="switch"><input type="checkbox" id="realtime-toggle" checked><span class="slider-toggle"></span></label>
+                    </div>
+                    <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; justify-content:space-between; margin-bottom:12px;">
+                        <div class="form-group" style="flex:1; min-width:220px; margin-bottom:0;">
+                            <label class="form-label" for="overview-device-select">Data source</label>
+                            <select class="form-select" id="overview-device-select">
+                                <option value="">All devices (mixed timeline)</option>
+                            </select>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:12px; padding-bottom:2px;">
+                            <span style="font-size:0.78rem; color:var(--text-muted);">Dashboard Auto-Refresh (3s)</span>
+                            <label class="switch"><input type="checkbox" id="dashboard-auto-refresh" checked><span class="slider-toggle"></span></label>
                         </div>
                     </div>
+                    <p id="overview-chart-caption" style="font-size:0.78rem; color:var(--text-muted); margin-bottom:14px; line-height:1.5;">
+                        Last 25 vibration readings across all registered devices. Select a single device for a dedicated trend line.
+                    </p>
                     <div class="chart-container" style="height:240px;">
                         <canvas id="overviewChart"></canvas>
                     </div>
                     <div id="overview-chart-empty" class="empty-state" style="display:none; padding:40px 20px;">
                         <div class="empty-state-icon" style="width:60px;height:60px;font-size:1.4rem;border-radius:14px;"><i class="fa-solid fa-chart-area"></i></div>
-                        <p style="font-size:0.82rem;">No telemetry data available yet. Send data via the Telemetry Stream.</p>
+                        <p style="font-size:0.82rem;">No telemetry data for this selection yet. Send data via Telemetry Stream or choose another device.</p>
                     </div>
                 </div>
                 <div class="card">
@@ -1086,6 +1097,7 @@
     const MAX_SCHEDULED_YEAR = 2035;
     let cachedDevices = [];
     let cachedMaintenance = [];
+    let overviewChartRaw = [];
     let pendingConfirmCallback = null;
     let simInterval = null;
 
@@ -1193,8 +1205,34 @@
     const ctxOverview = document.getElementById('overviewChart').getContext('2d');
     const overviewChart = new Chart(ctxOverview, {
         type: 'line',
-        data: { labels: [], datasets: [{ data: [], borderColor: '#00d4ff', borderWidth: 2, fill: true, backgroundColor: makeGradient(ctxOverview) }] },
-        options: chartOpts
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Vibration (mm/s)',
+                data: [],
+                borderColor: '#00d4ff',
+                borderWidth: 2,
+                fill: true,
+                backgroundColor: makeGradient(ctxOverview)
+            }]
+        },
+        options: {
+            ...chartOpts,
+            plugins: {
+                legend: { display: true, labels: { color: '#eef2ff', font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: (ctx) => {
+                            const entry = overviewChartRaw[ctx.dataIndex];
+                            if (entry && entry.device_name) {
+                                return `Device: ${entry.device_name} (${entry.device_id})`;
+                            }
+                            return '';
+                        }
+                    }
+                }
+            }
+        }
     });
 
     const ctxStream = document.getElementById('streamChart').getContext('2d');
@@ -1259,25 +1297,6 @@
             document.getElementById('stat-telemetry-trend').textContent = dashboard.total_telemetry > 0 ? `${dashboard.total_telemetry} entries` : '—';
             document.getElementById('stat-vibration-trend').textContent = 'mm/s';
 
-            // Chart
-            const chartEl = document.getElementById('overviewChart').parentElement;
-            const emptyChart = document.getElementById('overview-chart-empty');
-            if (dashboard.history.length > 0) {
-                chartEl.style.display = 'block';
-                emptyChart.style.display = 'none';
-                const labels = dashboard.history.map(e => {
-                    const d = new Date(e.timestamp);
-                    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-                });
-                const values = dashboard.history.map(e => e.vibration_index);
-                overviewChart.data.labels = labels;
-                overviewChart.data.datasets[0].data = values;
-                overviewChart.update();
-            } else {
-                chartEl.style.display = 'none';
-                emptyChart.style.display = 'flex';
-            }
-
             // Overview maintenance preview
             renderOverviewMaintenance(dashboard.upcoming_maintenance);
 
@@ -1294,8 +1313,57 @@
             document.getElementById('sec-db-stats').textContent =
                 `${dashboard.total_devices} Devices, ${dashboard.total_telemetry} Records`;
 
+            await refreshOverviewChart();
+
         } catch (err) {
             console.error('[REFRESH ERROR]', err);
+        }
+    }
+
+    async function refreshOverviewChart() {
+        try {
+            const deviceId = document.getElementById('overview-device-select').value;
+            const caption = document.getElementById('overview-chart-caption');
+            const query = deviceId
+                ? `?device_id=${encodeURIComponent(deviceId)}&limit=25`
+                : '?limit=25';
+            const data = await apiGet('/telemetry' + query);
+
+            overviewChartRaw = data;
+
+            if (deviceId) {
+                const dev = cachedDevices.find(d => d.id === deviceId);
+                const name = dev ? dev.name : deviceId;
+                caption.textContent = `Showing the last 25 vibration readings for ${name} (${deviceId}).`;
+                overviewChart.data.datasets[0].label = `Vibration · ${name}`;
+            } else if (cachedDevices.length === 0) {
+                caption.textContent = 'No devices registered yet. Add a device to start collecting telemetry.';
+                overviewChart.data.datasets[0].label = 'Vibration (mm/s)';
+            } else {
+                caption.textContent = 'Showing the last 25 readings across all devices (mixed timeline). Hover a point to see which device sent it.';
+                overviewChart.data.datasets[0].label = 'Vibration · all devices';
+            }
+
+            const chartEl = document.getElementById('overviewChart').parentElement;
+            const emptyChart = document.getElementById('overview-chart-empty');
+
+            if (data.length > 0) {
+                chartEl.style.display = 'block';
+                emptyChart.style.display = 'none';
+                const labels = data.map(e => {
+                    const d = new Date(e.timestamp);
+                    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                });
+                const values = data.map(e => e.vibration_index);
+                overviewChart.data.labels = labels;
+                overviewChart.data.datasets[0].data = values;
+                overviewChart.update();
+            } else {
+                chartEl.style.display = 'none';
+                emptyChart.style.display = 'flex';
+            }
+        } catch (err) {
+            console.error('[OVERVIEW CHART ERROR]', err);
         }
     }
 
@@ -1436,8 +1504,11 @@
     // Device Dropdowns
     // ============================
     function updateDeviceDropdowns(devices) {
-        const selects = [document.getElementById('sim-device-select'), document.getElementById('maint-device')];
-        selects.forEach(sel => {
+        const simMaintSelects = [
+            document.getElementById('sim-device-select'),
+            document.getElementById('maint-device')
+        ];
+        simMaintSelects.forEach(sel => {
             if (!sel) return;
             const currentVal = sel.value;
             sel.innerHTML = '';
@@ -1451,11 +1522,30 @@
                     sel.appendChild(opt);
                 });
             }
-            // Restore selection if possible
             if (currentVal && [...sel.options].some(o => o.value === currentVal)) {
                 sel.value = currentVal;
             }
         });
+
+        const overviewSel = document.getElementById('overview-device-select');
+        if (overviewSel) {
+            const currentVal = overviewSel.value;
+            overviewSel.innerHTML = '';
+            if (devices.length === 0) {
+                overviewSel.innerHTML = '<option value="">— No devices registered —</option>';
+            } else {
+                overviewSel.innerHTML = '<option value="">All devices (mixed timeline)</option>';
+                devices.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = `${d.name} (${d.id})`;
+                    overviewSel.appendChild(opt);
+                });
+            }
+            if (currentVal && [...overviewSel.options].some(o => o.value === currentVal)) {
+                overviewSel.value = currentVal;
+            }
+        }
     }
 
     // ============================
@@ -1799,27 +1889,24 @@
         }
     }
 
-    // Auto-simulation toggle
+    // Auto-simulation toggle (independent from dashboard auto-refresh)
     document.getElementById('sim-auto-toggle').addEventListener('change', e => {
         if (e.target.checked) {
             simInterval = setInterval(() => {
-                if (document.getElementById('realtime-toggle').checked) {
-                    const randomValid = Math.random() > 0.05;
-                    if (randomValid) {
-                        // Update input fields with randomized values
-                        const vibVal = (4.0 + Math.random() * 2.0).toFixed(2);
-                        const tempVal = (55.0 + Math.random() * 20.0).toFixed(1);
-                        const powerVal = (10.0 + Math.random() * 5.0).toFixed(2);
-                        const curHours = parseFloat(document.getElementById('sim-hours').value || 120.0);
-                        const hoursVal = (curHours + 0.1).toFixed(1);
+                const randomValid = Math.random() > 0.05;
+                if (randomValid) {
+                    const vibVal = (4.0 + Math.random() * 2.0).toFixed(2);
+                    const tempVal = (55.0 + Math.random() * 20.0).toFixed(1);
+                    const powerVal = (10.0 + Math.random() * 5.0).toFixed(2);
+                    const curHours = parseFloat(document.getElementById('sim-hours').value || 120.0);
+                    const hoursVal = (curHours + 0.1).toFixed(1);
 
-                        document.getElementById('sim-vibration').value = vibVal;
-                        document.getElementById('sim-temperature').value = tempVal;
-                        document.getElementById('sim-power').value = powerVal;
-                        document.getElementById('sim-hours').value = hoursVal;
-                    }
-                    sendTelemetry(randomValid);
+                    document.getElementById('sim-vibration').value = vibVal;
+                    document.getElementById('sim-temperature').value = tempVal;
+                    document.getElementById('sim-power').value = powerVal;
+                    document.getElementById('sim-hours').value = hoursVal;
                 }
+                sendTelemetry(randomValid);
             }, 3000);
         } else {
             if (simInterval) clearInterval(simInterval);
@@ -1827,8 +1914,8 @@
         }
     });
 
-    // Refresh stream chart when device changes
     document.getElementById('sim-device-select').addEventListener('change', refreshTelemetryChart);
+    document.getElementById('overview-device-select').addEventListener('change', refreshOverviewChart);
 
     // ============================
     // Date Formatting
@@ -1887,9 +1974,8 @@
     refreshDashboard();
     refreshTelemetryChart();
 
-    // Poll every 3 seconds
     setInterval(() => {
-        if (document.getElementById('realtime-toggle').checked) {
+        if (document.getElementById('dashboard-auto-refresh').checked) {
             refreshDashboard();
         }
     }, 3000);
