@@ -13,13 +13,6 @@ DB_USER = os.environ.get('DB_USER', 'legacy_user')
 DB_PASSWORD = os.environ.get('DB_PASSWORD', 'legacy_pass')
 DB_NAME = os.environ.get('DB_NAME', 'legacyhub')
 
-VALID_TECHNICIANS = [
-    'Markus Rühl',
-    'Claudia Obert',
-    'Leon Gooretzzkaaa',
-    'Luke Skywalker',
-]
-
 MIN_SCHEDULED_YEAR = 2020
 MAX_SCHEDULED_YEAR = 2035
 
@@ -29,21 +22,31 @@ IP_PATTERN = re.compile(
 )
 
 
+class ApiError(Exception):
+    """Expected API failure with an HTTP status code and client-safe message."""
+
+    def __init__(self, message, status_code=400):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(message)
+
+
 def validate_ip_address(ip):
-    ip = ip.strip()
+    ip = (ip or '').strip()
+    if not ip:
+        raise ApiError("IP address is required")
     if not IP_PATTERN.match(ip):
-        raise ValueError(f"Invalid IP address: '{ip}'")
+        raise ApiError(f"Invalid IP address: '{ip}'")
     return ip
 
 
 def parse_and_validate_scheduled(scheduled):
-    """Parse a scheduled datetime string and validate the year range."""
     if isinstance(scheduled, datetime):
         dt = scheduled
     elif isinstance(scheduled, str):
         scheduled = scheduled.strip()
         if not scheduled:
-            raise ValueError("Scheduled date is required")
+            raise ApiError("Scheduled date is required")
 
         dt = None
         cleaned = scheduled.replace('T', ' ').split('.')[0].replace('Z', '')
@@ -59,27 +62,25 @@ def parse_and_validate_scheduled(scheduled):
                 if dt.tzinfo is not None:
                     dt = dt.replace(tzinfo=None)
             except ValueError as exc:
-                raise ValueError(
+                raise ApiError(
                     "Invalid date format. Use YYYY-MM-DD HH:MM or a valid ISO datetime."
                 ) from exc
     else:
-        raise ValueError("Scheduled date must be a string or datetime")
+        raise ApiError("Scheduled date must be a string or datetime")
 
     if dt.year < MIN_SCHEDULED_YEAR or dt.year > MAX_SCHEDULED_YEAR:
-        raise ValueError(
+        raise ApiError(
             f"Year must be between {MIN_SCHEDULED_YEAR} and {MAX_SCHEDULED_YEAR} (got {dt.year})."
         )
 
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def validate_technician(technician):
-    technician = (technician or '').strip()
-    if not technician:
-        raise ValueError("Technician is required")
-    if technician not in VALID_TECHNICIANS:
-        raise ValueError(f"Technician must be one of: {', '.join(VALID_TECHNICIANS)}")
-    return technician
+def require_text(value, field_name):
+    text = (value or '').strip()
+    if not text:
+        raise ApiError(f"Field '{field_name}' is required")
+    return text
 
 
 def get_db():
@@ -263,15 +264,49 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
             "code": status_code
         })
 
+    def _run(self, action, handler):
+        """Run a handler with unified error mapping."""
+        try:
+            handler()
+        except ApiError as err:
+            self._send_error(err.status_code, err.message)
+        except pymysql.Error as err:
+            print(f"[ERROR] {action}: {err}", flush=True)
+            self._send_error(500, "Database operation failed")
+        except Exception as err:
+            print(f"[ERROR] {action}: {err}", flush=True)
+            self._send_error(500, "Internal server error")
+
     def _read_body(self):
         content_length = int(self.headers.get('Content-Length', 0))
         raw = self.rfile.read(content_length)
         if not raw:
             return {}
-        return json.loads(raw.decode('utf-8'))
+        try:
+            return json.loads(raw.decode('utf-8'))
+        except json.JSONDecodeError as err:
+            raise ApiError("Invalid JSON in request body") from err
 
     def _parse_path(self):
         return [s for s in self.path.split('?')[0].split('/') if s]
+
+    def _parse_query(self):
+        query_string = self.path.split('?')[1] if '?' in self.path else ''
+        return dict(p.split('=') for p in query_string.split('&') if '=' in p)
+
+    def _require_device(self, cursor, device_id):
+        cursor.execute("SELECT * FROM devices WHERE id = %s", (device_id,))
+        device = cursor.fetchone()
+        if not device:
+            raise ApiError(f"Device '{device_id}' not found", 404)
+        return device
+
+    def _require_maintenance(self, cursor, event_id):
+        cursor.execute("SELECT * FROM maintenance WHERE id = %s", (event_id,))
+        event = cursor.fetchone()
+        if not event:
+            raise ApiError(f"Maintenance event #{event_id} not found", 404)
+        return event
 
     def do_OPTIONS(self):
         self.send_response(200)
@@ -282,15 +317,13 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
         segments = self._parse_path()
 
         if segments == ['api', 'devices']:
-            self._get_devices()
+            self._run("get devices", self._get_devices)
         elif segments == ['api', 'telemetry']:
-            self._get_telemetry()
+            self._run("get telemetry", self._get_telemetry)
         elif segments == ['api', 'maintenance']:
-            self._get_maintenance()
-        elif segments == ['api', 'maintenance', 'technicians']:
-            self._get_technicians()
+            self._run("get maintenance", self._get_maintenance)
         elif segments == ['api', 'dashboard']:
-            self._get_dashboard()
+            self._run("get dashboard", self._get_dashboard)
         else:
             self._send_error(404, "Endpoint not found")
 
@@ -298,11 +331,11 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
         segments = self._parse_path()
 
         if segments == ['api', 'devices']:
-            self._create_device()
+            self._run("create device", self._create_device)
         elif segments == ['api', 'telemetry']:
-            self._create_telemetry()
+            self._run("create telemetry", self._create_telemetry)
         elif segments == ['api', 'maintenance']:
-            self._create_maintenance()
+            self._run("create maintenance", self._create_maintenance)
         else:
             self._send_error(404, "Endpoint not found")
 
@@ -310,9 +343,9 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
         segments = self._parse_path()
 
         if len(segments) == 3 and segments[:2] == ['api', 'devices']:
-            self._update_device(segments[2])
+            self._run("update device", lambda: self._update_device(segments[2]))
         elif len(segments) == 3 and segments[:2] == ['api', 'maintenance']:
-            self._update_maintenance(segments[2])
+            self._run("update maintenance", lambda: self._update_maintenance(segments[2]))
         else:
             self._send_error(404, "Endpoint not found")
 
@@ -320,18 +353,15 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
         segments = self._parse_path()
 
         if len(segments) == 3 and segments[:2] == ['api', 'devices']:
-            self._delete_device(segments[2])
+            self._run("delete device", lambda: self._delete_device(segments[2]))
         elif len(segments) == 3 and segments[:2] == ['api', 'maintenance']:
-            self._delete_maintenance(segments[2])
+            self._run("delete maintenance", lambda: self._delete_maintenance(segments[2]))
         else:
             self._send_error(404, "Endpoint not found")
 
-    def _get_technicians(self):
-        self._send_json(200, VALID_TECHNICIANS)
-
     def _get_devices(self):
+        conn = get_db()
         try:
-            conn = get_db()
             with conn.cursor() as cursor:
                 cursor.execute("""
                     SELECT d.*,
@@ -342,330 +372,251 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
                     ORDER BY d.created_at DESC
                 """)
                 rows = cursor.fetchall()
+        finally:
             conn.close()
-            self._send_json(200, rows)
-        except Exception as e:
-            self._send_error(500, f"Database query failed: {str(e)}")
+        self._send_json(200, rows)
 
     def _create_device(self):
+        body = self._read_body()
+        ip_address = validate_ip_address(body.get('ip_address', body.get('id', '')))
+        name = require_text(body.get('name'), 'name')
+
+        conn = get_db()
         try:
-            body = self._read_body()
-            ip_address = validate_ip_address(body.get('ip_address', body.get('id', '')))
-            name = body.get('name', '').strip()
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM devices WHERE id = %s", (ip_address,))
+                if cursor.fetchone():
+                    raise ApiError(f"Device with IP '{ip_address}' already exists", 409)
 
-            if not name:
-                self._send_error(400, "Field 'name' is required")
-                return
+                cursor.execute("""
+                    INSERT INTO devices (id, name, type, ingress, status, icon)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    ip_address,
+                    name,
+                    body.get('type', 'Custom IoT Device'),
+                    body.get('ingress', 'API Ingestion'),
+                    body.get('status', 'STANDBY'),
+                    body.get('icon', 'fa-microchip')
+                ))
+            conn.commit()
+        finally:
+            conn.close()
 
-            device_id = ip_address
-
-            conn = get_db()
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("SELECT * FROM devices WHERE id = %s", (device_id,))
-                    if cursor.fetchone():
-                        self._send_error(409, f"Device with IP '{ip_address}' already exists")
-                        return
-
-                    cursor.execute("""
-                        INSERT INTO devices (id, name, type, ingress, status, icon)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (
-                        device_id,
-                        name,
-                        body.get('type', 'Custom IoT Device'),
-                        body.get('ingress', 'API Ingestion'),
-                        body.get('status', 'STANDBY'),
-                        body.get('icon', 'fa-microchip')
-                    ))
-                conn.commit()
-                print(f"[DEVICE-CREATED] {device_id} ({name})", flush=True)
-                self._send_json(201, {"status": "CREATED", "device_id": device_id, "ip_address": ip_address})
-            finally:
-                conn.close()
-
-        except ValueError as e:
-            self._send_error(400, str(e))
-        except Exception as e:
-            print(f"[ERROR] Create device failed: {e}", flush=True)
-            self._send_error(400, str(e))
+        print(f"[DEVICE-CREATED] {ip_address} ({name})", flush=True)
+        self._send_json(201, {"status": "CREATED", "device_id": ip_address, "ip_address": ip_address})
 
     def _update_device(self, device_id):
+        validate_ip_address(device_id)
+        body = self._read_body()
+
+        conn = get_db()
         try:
-            validate_ip_address(device_id)
-            body = self._read_body()
-            conn = get_db()
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("SELECT * FROM devices WHERE id = %s", (device_id,))
-                    existing = cursor.fetchone()
-                    if not existing:
-                        self._send_error(404, f"Device '{device_id}' not found")
-                        return
+            with conn.cursor() as cursor:
+                existing = self._require_device(cursor, device_id)
+                cursor.execute("""
+                    UPDATE devices
+                    SET name = %s, type = %s, ingress = %s, status = %s, icon = %s
+                    WHERE id = %s
+                """, (
+                    body.get('name', existing['name']),
+                    body.get('type', existing['type']),
+                    body.get('ingress', existing['ingress']),
+                    body.get('status', existing['status']),
+                    body.get('icon', existing['icon']),
+                    device_id
+                ))
+            conn.commit()
+        finally:
+            conn.close()
 
-                    cursor.execute("""
-                        UPDATE devices
-                        SET name = %s, type = %s, ingress = %s, status = %s, icon = %s
-                        WHERE id = %s
-                    """, (
-                        body.get('name', existing['name']),
-                        body.get('type', existing['type']),
-                        body.get('ingress', existing['ingress']),
-                        body.get('status', existing['status']),
-                        body.get('icon', existing['icon']),
-                        device_id
-                    ))
-                conn.commit()
-                print(f"[DEVICE-UPDATED] {device_id}", flush=True)
-                self._send_json(200, {"status": "UPDATED", "device_id": device_id})
-            finally:
-                conn.close()
-
-        except ValueError as e:
-            self._send_error(400, str(e))
-        except Exception as e:
-            print(f"[ERROR] Update device failed: {e}", flush=True)
-            self._send_error(400, str(e))
+        print(f"[DEVICE-UPDATED] {device_id}", flush=True)
+        self._send_json(200, {"status": "UPDATED", "device_id": device_id})
 
     def _delete_device(self, device_id):
+        conn = get_db()
         try:
-            conn = get_db()
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("SELECT * FROM devices WHERE id = %s", (device_id,))
-                    existing = cursor.fetchone()
-                    if not existing:
-                        self._send_error(404, f"Device '{device_id}' not found")
-                        return
+            with conn.cursor() as cursor:
+                self._require_device(cursor, device_id)
+                cursor.execute("DELETE FROM devices WHERE id = %s", (device_id,))
+            conn.commit()
+        finally:
+            conn.close()
 
-                    cursor.execute("DELETE FROM devices WHERE id = %s", (device_id,))
-                conn.commit()
-                print(f"[DEVICE-DELETED] {device_id} (cascade: telemetry + maintenance)", flush=True)
-                self._send_json(200, {"status": "DELETED", "device_id": device_id})
-            finally:
-                conn.close()
-        except Exception as e:
-            self._send_error(500, str(e))
+        print(f"[DEVICE-DELETED] {device_id} (cascade: telemetry + maintenance)", flush=True)
+        self._send_json(200, {"status": "DELETED", "device_id": device_id})
 
     def _get_telemetry(self):
+        params = self._parse_query()
+        device_id = params.get('device_id')
+        if device_id:
+            device_id = validate_ip_address(device_id)
+
         try:
-            query_string = self.path.split('?')[1] if '?' in self.path else ''
-            params = dict(p.split('=') for p in query_string.split('&') if '=' in p)
-            device_id = params.get('device_id', None)
             limit = int(params.get('limit', 50))
+        except ValueError as err:
+            raise ApiError("Query parameter 'limit' must be an integer") from err
+        if limit < 1 or limit > 500:
+            raise ApiError("Query parameter 'limit' must be between 1 and 500")
 
-            conn = get_db()
-            try:
-                with conn.cursor() as cursor:
-                    if device_id:
-                        cursor.execute("""
-                            SELECT t.*, d.name as device_name
-                            FROM telemetry t
-                            JOIN devices d ON t.device_id = d.id
-                            WHERE t.device_id = %s
-                            ORDER BY t.timestamp DESC LIMIT %s
-                        """, (device_id, limit))
-                    else:
-                        cursor.execute("""
-                            SELECT t.*, d.name as device_name
-                            FROM telemetry t
-                            JOIN devices d ON t.device_id = d.id
-                            ORDER BY t.timestamp DESC LIMIT %s
-                        """, (limit,))
-                    rows = cursor.fetchall()
-            finally:
-                conn.close()
+        conn = get_db()
+        try:
+            with conn.cursor() as cursor:
+                if device_id:
+                    cursor.execute("""
+                        SELECT t.*, d.name as device_name
+                        FROM telemetry t
+                        JOIN devices d ON t.device_id = d.id
+                        WHERE t.device_id = %s
+                        ORDER BY t.timestamp DESC LIMIT %s
+                    """, (device_id, limit))
+                else:
+                    cursor.execute("""
+                        SELECT t.*, d.name as device_name
+                        FROM telemetry t
+                        JOIN devices d ON t.device_id = d.id
+                        ORDER BY t.timestamp DESC LIMIT %s
+                    """, (limit,))
+                rows = cursor.fetchall()
+        finally:
+            conn.close()
 
-            result = list(rows)
-            result.reverse()
-            self._send_json(200, result)
-        except Exception as e:
-            self._send_error(500, str(e))
+        result = list(rows)
+        result.reverse()
+        self._send_json(200, result)
 
     def _create_telemetry(self):
+        body = self._read_body()
+        device_id = validate_ip_address(body.get('device_id', ''))
+
         try:
-            body = self._read_body()
-            device_id = validate_ip_address(body.get('device_id', ''))
             vibration = float(body.get('vibration_index', 0.0))
             temperature = float(body.get('temperature', 0.0))
             power_consumption_kw = float(body.get('power_consumption_kw', 0.0))
             operating_hours = float(body.get('operating_hours', 0.0))
-            status = body.get('status', 'RUNNING')
+        except (TypeError, ValueError) as err:
+            raise ApiError("Telemetry numeric fields must be valid numbers") from err
 
-            conn = get_db()
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("SELECT * FROM devices WHERE id = %s", (device_id,))
-                    device = cursor.fetchone()
-                    if not device:
-                        self._send_error(404, f"Device '{device_id}' not found. Register it first.")
-                        return
+        status = body.get('status', 'RUNNING')
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    cursor.execute("""
-                        INSERT INTO telemetry (device_id, vibration_index, temperature, power_consumption_kw, operating_hours, status, timestamp)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """, (device_id, vibration, temperature, power_consumption_kw, operating_hours, status, timestamp))
+        conn = get_db()
+        try:
+            with conn.cursor() as cursor:
+                self._require_device(cursor, device_id)
+                cursor.execute("""
+                    INSERT INTO telemetry (device_id, vibration_index, temperature, power_consumption_kw, operating_hours, status, timestamp)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (device_id, vibration, temperature, power_consumption_kw, operating_hours, status, timestamp))
+                cursor.execute("UPDATE devices SET status = %s WHERE id = %s", (status, device_id))
+            conn.commit()
+        finally:
+            conn.close()
 
-                    cursor.execute("""
-                        UPDATE devices SET status = %s WHERE id = %s
-                    """, (status, device_id))
-                conn.commit()
-            finally:
-                conn.close()
-
-            print(f"[TELEMETRY] {device_id}: {vibration} mm/s, {temperature} C, {power_consumption_kw} kW, {operating_hours} h ({status}) at {timestamp}", flush=True)
-            self._send_json(200, {
-                "status": "ACCEPTED",
-                "device": device_id,
-                "vibration_index": vibration,
-                "temperature": temperature,
-                "power_consumption_kw": power_consumption_kw,
-                "operating_hours": operating_hours,
-                "timestamp": timestamp,
-                "error": None
-            })
-
-        except ValueError as e:
-            self._send_error(400, str(e))
-        except Exception as e:
-            print(f"[ERROR] Telemetry ingestion failed: {e}", flush=True)
-            self._send_error(400, str(e))
+        print(f"[TELEMETRY] {device_id}: {vibration} mm/s, {temperature} C, {power_consumption_kw} kW, {operating_hours} h ({status}) at {timestamp}", flush=True)
+        self._send_json(200, {
+            "status": "ACCEPTED",
+            "device": device_id,
+            "vibration_index": vibration,
+            "temperature": temperature,
+            "power_consumption_kw": power_consumption_kw,
+            "operating_hours": operating_hours,
+            "timestamp": timestamp,
+            "error": None
+        })
 
     def _get_maintenance(self):
+        conn = get_db()
         try:
-            conn = get_db()
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("""
-                        SELECT m.*, d.name as device_name
-                        FROM maintenance m
-                        JOIN devices d ON m.device_id = d.id
-                        ORDER BY m.scheduled ASC
-                    """)
-                    rows = cursor.fetchall()
-            finally:
-                conn.close()
-            self._send_json(200, rows)
-        except Exception as e:
-            self._send_error(500, str(e))
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT m.*, d.name as device_name
+                    FROM maintenance m
+                    JOIN devices d ON m.device_id = d.id
+                    ORDER BY m.scheduled ASC
+                """)
+                rows = cursor.fetchall()
+        finally:
+            conn.close()
+        self._send_json(200, rows)
 
     def _create_maintenance(self):
+        body = self._read_body()
+        device_id = validate_ip_address(body.get('device_id', ''))
+        title = require_text(body.get('title'), 'title')
+        scheduled_db = parse_and_validate_scheduled(body.get('scheduled', ''))
+        technician = (body.get('technician') or '').strip()
+
+        conn = get_db()
         try:
-            body = self._read_body()
-            device_id = validate_ip_address(body.get('device_id', ''))
-            title = body.get('title', '').strip()
-            scheduled = body.get('scheduled', '')
+            with conn.cursor() as cursor:
+                self._require_device(cursor, device_id)
+                cursor.execute("""
+                    INSERT INTO maintenance (device_id, title, description, technician, priority, scheduled)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    device_id,
+                    title,
+                    body.get('description', ''),
+                    technician,
+                    body.get('priority', 'routine'),
+                    scheduled_db
+                ))
+                new_id = cursor.lastrowid
+            conn.commit()
+        finally:
+            conn.close()
 
-            if not title:
-                self._send_error(400, "Field 'title' is required")
-                return
-
-            scheduled_db = parse_and_validate_scheduled(scheduled)
-            technician = validate_technician(body.get('technician', ''))
-
-            conn = get_db()
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("SELECT * FROM devices WHERE id = %s", (device_id,))
-                    device = cursor.fetchone()
-                    if not device:
-                        self._send_error(404, f"Device '{device_id}' not found")
-                        return
-
-                    cursor.execute("""
-                        INSERT INTO maintenance (device_id, title, description, technician, priority, scheduled)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (
-                        device_id,
-                        title,
-                        body.get('description', ''),
-                        technician,
-                        body.get('priority', 'routine'),
-                        scheduled_db
-                    ))
-                    new_id = cursor.lastrowid
-                conn.commit()
-            finally:
-                conn.close()
-
-            print(f"[MAINTENANCE-CREATED] #{new_id} for {device_id}: {title}", flush=True)
-            self._send_json(201, {"status": "CREATED", "id": new_id})
-
-        except ValueError as e:
-            self._send_error(400, str(e))
-        except Exception as e:
-            print(f"[ERROR] Create maintenance failed: {e}", flush=True)
-            self._send_error(400, str(e))
+        print(f"[MAINTENANCE-CREATED] #{new_id} for {device_id}: {title}", flush=True)
+        self._send_json(201, {"status": "CREATED", "id": new_id})
 
     def _update_maintenance(self, event_id):
+        body = self._read_body()
+
+        conn = get_db()
         try:
-            body = self._read_body()
-            conn = get_db()
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("SELECT * FROM maintenance WHERE id = %s", (event_id,))
-                    existing = cursor.fetchone()
-                    if not existing:
-                        self._send_error(404, f"Maintenance event #{event_id} not found")
-                        return
+            with conn.cursor() as cursor:
+                existing = self._require_maintenance(cursor, event_id)
+                device_id = validate_ip_address(body.get('device_id', existing['device_id']))
+                scheduled_db = parse_and_validate_scheduled(body.get('scheduled', existing['scheduled']))
+                technician = (body.get('technician', existing['technician']) or '').strip()
 
-                    device_id = body.get('device_id', existing['device_id'])
-                    device_id = validate_ip_address(device_id)
+                cursor.execute("""
+                    UPDATE maintenance
+                    SET title = %s, description = %s, technician = %s, priority = %s, scheduled = %s, device_id = %s
+                    WHERE id = %s
+                """, (
+                    body.get('title', existing['title']),
+                    body.get('description', existing['description']),
+                    technician,
+                    body.get('priority', existing['priority']),
+                    scheduled_db,
+                    device_id,
+                    event_id
+                ))
+            conn.commit()
+        finally:
+            conn.close()
 
-                    scheduled = body.get('scheduled', existing['scheduled'])
-                    scheduled_db = parse_and_validate_scheduled(scheduled)
-
-                    technician = validate_technician(body.get('technician', existing['technician']))
-
-                    cursor.execute("""
-                        UPDATE maintenance
-                        SET title = %s, description = %s, technician = %s, priority = %s, scheduled = %s, device_id = %s
-                        WHERE id = %s
-                    """, (
-                        body.get('title', existing['title']),
-                        body.get('description', existing['description']),
-                        technician,
-                        body.get('priority', existing['priority']),
-                        scheduled_db,
-                        device_id,
-                        event_id
-                    ))
-                conn.commit()
-            finally:
-                conn.close()
-            print(f"[MAINTENANCE-UPDATED] #{event_id}", flush=True)
-            self._send_json(200, {"status": "UPDATED", "id": int(event_id)})
-
-        except ValueError as e:
-            self._send_error(400, str(e))
-        except Exception as e:
-            print(f"[ERROR] Update maintenance failed: {e}", flush=True)
-            self._send_error(400, str(e))
+        print(f"[MAINTENANCE-UPDATED] #{event_id}", flush=True)
+        self._send_json(200, {"status": "UPDATED", "id": int(event_id)})
 
     def _delete_maintenance(self, event_id):
+        conn = get_db()
         try:
-            conn = get_db()
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("SELECT * FROM maintenance WHERE id = %s", (event_id,))
-                    existing = cursor.fetchone()
-                    if not existing:
-                        self._send_error(404, f"Maintenance event #{event_id} not found")
-                        return
+            with conn.cursor() as cursor:
+                self._require_maintenance(cursor, event_id)
+                cursor.execute("DELETE FROM maintenance WHERE id = %s", (event_id,))
+            conn.commit()
+        finally:
+            conn.close()
 
-                    cursor.execute("DELETE FROM maintenance WHERE id = %s", (event_id,))
-                conn.commit()
-            finally:
-                conn.close()
-            print(f"[MAINTENANCE-DELETED] #{event_id}", flush=True)
-            self._send_json(200, {"status": "DELETED", "id": int(event_id)})
-        except Exception as e:
-            self._send_error(500, str(e))
+        print(f"[MAINTENANCE-DELETED] #{event_id}", flush=True)
+        self._send_json(200, {"status": "DELETED", "id": int(event_id)})
 
     def _get_dashboard(self):
+        conn = get_db()
         try:
-            conn = get_db()
             with conn.cursor() as cursor:
                 cursor.execute("SELECT COUNT(*) as total FROM devices")
                 total_devices = cursor.fetchone()['total']
@@ -712,25 +663,22 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
 
                 cursor.execute("SELECT COUNT(*) as count FROM maintenance")
                 pending_maintenance = cursor.fetchone()['count']
-
+        finally:
             conn.close()
 
-            self._send_json(200, {
-                "total_devices": total_devices,
-                "active_devices": active_devices,
-                "standby_devices": standby_devices,
-                "total_telemetry": total_telemetry,
-                "avg_vibration": avg_vibration,
-                "avg_temperature": avg_temperature,
-                "avg_power_consumption": avg_power_consumption,
-                "avg_operating_hours": avg_operating_hours,
-                "pending_maintenance": pending_maintenance,
-                "history": history,
-                "upcoming_maintenance": upcoming_maintenance
-            })
-        except Exception as e:
-            print(f"[ERROR] Get dashboard failed: {e}", flush=True)
-            self._send_error(500, str(e))
+        self._send_json(200, {
+            "total_devices": total_devices,
+            "active_devices": active_devices,
+            "standby_devices": standby_devices,
+            "total_telemetry": total_telemetry,
+            "avg_vibration": avg_vibration,
+            "avg_temperature": avg_temperature,
+            "avg_power_consumption": avg_power_consumption,
+            "avg_operating_hours": avg_operating_hours,
+            "pending_maintenance": pending_maintenance,
+            "history": history,
+            "upcoming_maintenance": upcoming_maintenance
+        })
 
     def log_message(self, format, *args):
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {args[0]}", flush=True)
