@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LegacyHub - IoT Control Center</title>
     <meta name="description" content="LegacyHub - Dynamic IoT Control Center with real-time telemetry monitoring, device management, and maintenance scheduling.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='20' y='20' width='60' height='60' rx='10' fill='%230a0e1a' stroke='%2300d4ff' stroke-width='6'/%3E%3Crect x='35' y='35' width='30' height='30' rx='6' fill='none' stroke='%237c5cfc' stroke-width='4'/%3E%3Cpath d='M50 10 v10 M50 80 v10 M10 50 h10 M80 50 h10 M30 10 v10 M30 80 v10 M70 10 v10 M70 80 v10 M10 30 h10 M80 30 h10 M10 70 h10 M80 70 h10' stroke='%2300d4ff' stroke-width='6' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='50' r='6' fill='%2300d4ff'/%3E%3C/svg%3E">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -336,7 +337,9 @@
 
         /* ============ TABLE ============ */
         .table-wrapper {
-            border-radius: var(--radius-md); overflow: hidden;
+            border-radius: var(--radius-md);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
             border: 1px solid rgba(255,255,255,0.04);
         }
         table { width: 100%; border-collapse: collapse; text-align: left; }
@@ -386,7 +389,7 @@
         .terminal {
             background: var(--bg-tertiary); border: 1px solid rgba(255,255,255,0.04);
             border-radius: var(--radius-md); padding: 16px;
-            display: flex; flex-direction: column; gap: 8px; height: 180px;
+            display: flex; flex-direction: column; gap: 8px; height: 400px;
         }
         .terminal-bar {
             display: flex; justify-content: space-between; align-items: center;
@@ -570,7 +573,77 @@
 
         /* ============ CONFIRM DIALOG ============ */
         .confirm-text { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px; }
-        .confirm-text strong { color: var(--danger); }
+        /* ============ RESPONSIVE MOBILE NAVIGATION & STYLES ============ */
+        .hamburger-menu {
+            display: none;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.35rem;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+            align-items: center;
+            justify-content: center;
+        }
+        .hamburger-menu:hover {
+            background: var(--bg-hover);
+            color: var(--accent);
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.65);
+            backdrop-filter: blur(4px);
+            z-index: 95;
+            animation: modalOverlayIn 0.2s ease;
+        }
+
+        @media (max-width: 900px) {
+            .hamburger-menu {
+                display: inline-flex;
+                margin-right: 12px;
+            }
+            aside {
+                left: calc(-1 * var(--sidebar-w));
+                transition: var(--transition);
+                box-shadow: 0 0 40px rgba(0,0,0,0.5);
+            }
+            aside.show {
+                left: 0;
+            }
+            .sidebar-overlay.show {
+                display: block;
+            }
+            main {
+                margin-left: 0;
+            }
+            header {
+                padding: 0 20px;
+            }
+            .content-body {
+                padding: 20px;
+                gap: 20px;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 580px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .header-clock {
+                display: none;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -711,6 +784,8 @@
         </div>
     </div>
 
+    <div class="sidebar-overlay" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
     <aside>
         <div class="sidebar-brand">
             <div class="sidebar-brand-icon"><i class="fa-solid fa-microchip"></i></div>
@@ -745,6 +820,9 @@
     <main>
         <header>
             <div class="header-left">
+                <button class="hamburger-menu" id="hamburger-btn" onclick="toggleSidebar()">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
                 <h2 id="view-title">Machine Overview</h2>
                 <span class="header-breadcrumb"><i class="fa-solid fa-chevron-right"></i> LegacyHub</span>
             </div>
@@ -867,7 +945,7 @@
                         </div>
                     </div>
                     <p style="font-size:0.88rem; color:var(--text-muted); line-height:1.6; margin-bottom:24px; max-width:800px;">
-                        Simulate machine data for registered devices. The data is routed through the reverse proxy to the microservice, which stores it in the SQLite database.
+                        Simulate machine data for registered devices. The data is routed through the reverse proxy to the microservice, which stores it in the MariaDB database.
                     </p>
 
                     <div class="chart-container" style="height:280px; margin-bottom:24px;">
@@ -886,6 +964,29 @@
                                     <option value="">— No device registered —</option>
                                 </select>
                             </div>
+                            
+                            <div class="form-row" style="margin-bottom: 12px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" for="sim-vibration">Vibration (mm/s)</label>
+                                    <input type="number" step="0.01" class="form-input" id="sim-vibration" value="4.50">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" for="sim-temperature">Temp (°C)</label>
+                                    <input type="number" step="0.1" class="form-input" id="sim-temperature" value="65.0">
+                                </div>
+                            </div>
+                            
+                            <div class="form-row" style="margin-bottom: 12px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" for="sim-power">Power (kW)</label>
+                                    <input type="number" step="0.01" class="form-input" id="sim-power" value="12.50">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" for="sim-hours">Op. Hours (h)</label>
+                                    <input type="number" step="0.1" class="form-input" id="sim-hours" value="120.0">
+                                </div>
+                            </div>
+
                             <button class="btn btn-primary" onclick="sendTelemetry(true)" id="btn-send-valid">
                                 <i class="fa-solid fa-paper-plane"></i> Send Valid Data
                             </button>
@@ -958,8 +1059,8 @@
                         </div>
                         <div class="sec-card">
                             <div class="sec-card-head info"><i class="fa-solid fa-database"></i><span class="sec-card-title">Database Engine</span></div>
-                            <span class="sec-card-val">SQLite (WAL Mode)</span>
-                            <p class="sec-card-desc">Persistent local database with Write-Ahead Logging. Data survives container restarts via Docker named volumes.</p>
+                            <span class="sec-card-val">MariaDB Server</span>
+                            <p class="sec-card-desc">Relational MariaDB database storing device registries, unified telemetry logs, and maintenance plans.</p>
                             <div class="sec-card-foot"><i class="fa-solid fa-hard-drive"></i> <span id="sec-db-stats">Loading...</span></div>
                         </div>
                     </div>
@@ -1527,7 +1628,14 @@
             termOut.textContent = `[LOG] Initiating transaction via NGINX proxy...\n`;
 
             const payload = isValid
-                ? { device_id: deviceId, vibration_index: parseFloat((4.5 + (Math.random() - 0.5) * 4).toFixed(2)), status: 'RUNNING' }
+                ? {
+                    device_id: deviceId,
+                    vibration_index: parseFloat(parseFloat(document.getElementById('sim-vibration').value || 4.5).toFixed(2)),
+                    temperature: parseFloat(parseFloat(document.getElementById('sim-temperature').value || 65.0).toFixed(1)),
+                    power_consumption_kw: parseFloat(parseFloat(document.getElementById('sim-power').value || 12.5).toFixed(2)),
+                    operating_hours: parseFloat(parseFloat(document.getElementById('sim-hours').value || 120.0).toFixed(1)),
+                    status: 'RUNNING'
+                  }
                 : 'INVALID_STRING_NO_JSON';
 
             try {
@@ -1540,7 +1648,7 @@
 
                 const statusMsg = res.status === 200 ? 'SUCCESS' : 'ERROR';
                 termOut.textContent += `[HTTP] ${res.status} (${statusMsg})\n`;
-                termOut.textContent += `[API]  ${data.status}\n`;
+                termOut.textContent += `[API]  ${data.status || (data.success ? 'SUCCESS' : 'ERROR')}\n`;
                 termOut.textContent += `[PAYLOAD]\n${JSON.stringify(data, null, 2)}`;
                 termOut.scrollTop = termOut.scrollHeight;
 
@@ -1568,7 +1676,8 @@
                     emptyChart.style.display = 'none';
                     const labels = data.map(e => {
                         const d = new Date(e.timestamp);
-                        return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                        const pad = (n) => n.toString().padStart(2, '0');
+                        return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
                     });
                     const values = data.map(e => e.vibration_index);
                     streamChart.data.labels = labels;
@@ -1589,6 +1698,19 @@
                 simInterval = setInterval(() => {
                     if (document.getElementById('realtime-toggle').checked) {
                         const randomValid = Math.random() > 0.05;
+                        if (randomValid) {
+                            // Update input fields with randomized values
+                            const vibVal = (4.0 + Math.random() * 2.0).toFixed(2);
+                            const tempVal = (55.0 + Math.random() * 20.0).toFixed(1);
+                            const powerVal = (10.0 + Math.random() * 5.0).toFixed(2);
+                            const curHours = parseFloat(document.getElementById('sim-hours').value || 120.0);
+                            const hoursVal = (curHours + 0.1).toFixed(1);
+
+                            document.getElementById('sim-vibration').value = vibVal;
+                            document.getElementById('sim-temperature').value = tempVal;
+                            document.getElementById('sim-power').value = powerVal;
+                            document.getElementById('sim-hours').value = hoursVal;
+                        }
                         sendTelemetry(randomValid);
                     }
                 }, 3000);
@@ -1612,12 +1734,41 @@
             tomorrow.setDate(tomorrow.getDate() + 1);
             const isTomorrow = d.toDateString() === tomorrow.toDateString();
 
-            const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+            const pad = (n) => n.toString().padStart(2, '0');
+            const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
             if (isToday) return `Today, ${timeStr}`;
             if (isTomorrow) return `Tomorrow, ${timeStr}`;
-            return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) + `, ${timeStr}`;
+            
+            const dateStrGerman = `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+            return `${dateStrGerman}, ${timeStr}`;
         }
+
+        // ============================
+        // Mobile Sidebar Drawer
+        // ============================
+        function toggleSidebar() {
+            const sidebar = document.querySelector('aside');
+            const overlay = document.getElementById('sidebar-backdrop');
+            sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+        }
+
+        function closeSidebar() {
+            const sidebar = document.querySelector('aside');
+            const overlay = document.getElementById('sidebar-backdrop');
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+
+        // Update tab click listener to close sidebar on mobile
+        tabItems.forEach(item => {
+            item.addEventListener('click', e => {
+                e.preventDefault();
+                switchTab(item.dataset.tab);
+                closeSidebar();
+            });
+        });
 
         // ============================
         // Initial Load & Polling

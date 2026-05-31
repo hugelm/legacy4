@@ -34,15 +34,40 @@ services:
     volumes:
       - /var/app/current/backend:/app
 
-  # V3 - Dynamic Dashboard with SQLite
+  # V3 - Dynamic Dashboard with MariaDB
   backend3:
     image: python:3.10-slim
-    command: ["python", "/app/receiver3.py"]
+    command: >
+      sh -c "pip install --no-cache-dir -r /app/requirements.txt && python /app/main3.py"
     ports:
       - "8082:8082"
     volumes:
       - /var/app/current/backend:/app
-      - legacy4-db:/app/data
+    environment:
+      - DB_HOST=db3
+      - DB_USER=legacy_user
+      - DB_PASSWORD=legacy_pass
+      - DB_NAME=legacyhub
+    depends_on:
+      db3:
+        condition: service_healthy
+
+  db3:
+    image: mariadb:10.11
+    container_name: legacy4-db3
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: legacyhub
+      MYSQL_USER: legacy_user
+      MYSQL_PASSWORD: legacy_pass
+    volumes:
+      - legacy4-db3-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -uroot -proot_pass || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
 
 volumes:
   legacy4-db:
+  legacy4-db3-data:
