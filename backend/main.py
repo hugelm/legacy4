@@ -738,26 +738,31 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
         conn = get_db()
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT COUNT(*) as total FROM devices")
-                total_devices = cursor.fetchone()['total']
-
-                cursor.execute("SELECT COUNT(*) as active FROM devices WHERE status = 'RUNNING'")
-                active_devices = cursor.fetchone()['active']
-
-                cursor.execute("SELECT COUNT(*) as standby FROM devices WHERE status = 'STANDBY'")
-                standby_devices = cursor.fetchone()['standby']
-
-                cursor.execute("SELECT COUNT(*) as total_tel FROM telemetry")
-                total_telemetry = cursor.fetchone()['total_tel']
-
+                # Combine device total, active, and standby counts into a single query
                 cursor.execute("""
-                    SELECT AVG(vibration_index) as avg_vib,
-                           AVG(temperature) as avg_temp,
-                           AVG(power_consumption_kw) as avg_power,
-                           AVG(operating_hours) as avg_hours
+                    SELECT 
+                        COUNT(*) as total,
+                        COALESCE(SUM(CASE WHEN status = 'RUNNING' THEN 1 ELSE 0 END), 0) as active,
+                        COALESCE(SUM(CASE WHEN status = 'STANDBY' THEN 1 ELSE 0 END), 0) as standby
+                    FROM devices
+                """)
+                dev_stats = cursor.fetchone()
+                total_devices = dev_stats['total']
+                active_devices = int(dev_stats['active'])
+                standby_devices = int(dev_stats['standby'])
+
+                # Combine telemetry total count and average statistics into a single query
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) as total_tel,
+                        AVG(vibration_index) as avg_vib,
+                        AVG(temperature) as avg_temp,
+                        AVG(power_consumption_kw) as avg_power,
+                        AVG(operating_hours) as avg_hours
                     FROM telemetry
                 """)
                 stats = cursor.fetchone()
+                total_telemetry = stats['total_tel']
                 avg_vibration = round(stats['avg_vib'], 2) if stats['avg_vib'] is not None else 0.0
                 avg_temperature = round(stats['avg_temp'], 1) if stats['avg_temp'] is not None else 0.0
                 avg_power_consumption = round(stats['avg_power'], 2) if stats['avg_power'] is not None else 0.0
