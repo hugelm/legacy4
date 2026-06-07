@@ -1,6 +1,6 @@
 # Legacy4 - AWS Elastic Beanstalk Deployment Guide
 
-This repository contains a Docker Compose setup (Nginx frontend & Python backend) for AWS Elastic Beanstalk deployment.
+This repository contains a Docker Compose setup (Nginx frontend, Python backend & MariaDB database) for AWS Elastic Beanstalk deployment.
 
 ---
 
