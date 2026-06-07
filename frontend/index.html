@@ -190,13 +190,28 @@
         .status-pill.online {
             background: var(--success-dim); border: 1px solid var(--success-border); color: var(--success);
         }
+        .status-pill.offline {
+            background: var(--danger-dim); border: 1px solid var(--danger-border); color: var(--danger);
+        }
+        .status-pill.checking {
+            background: var(--warning-dim); border: 1px solid var(--warning-border); color: var(--warning);
+        }
         .status-dot {
-            width: 7px; height: 7px; border-radius: 50%; background: var(--success);
-            box-shadow: 0 0 8px var(--success); animation: pulse 1.8s infinite;
+            width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+            box-shadow: 0 0 8px currentColor; animation: pulse 1.8s infinite;
+        }
+        .status-pill.offline .status-dot,
+        .status-pill.checking .status-dot {
+            animation: pulse-warn 1.8s infinite;
         }
         @keyframes pulse {
             0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0,230,138,0.6); }
             70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(0,230,138,0); }
+            100% { transform: scale(0.95); }
+        }
+        @keyframes pulse-warn {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255,92,117,0.6); }
+            70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(255,92,117,0); }
             100% { transform: scale(0.95); }
         }
 
@@ -853,7 +868,7 @@
             <span class="header-breadcrumb"><i class="fa-solid fa-chevron-right"></i> LegacyHub</span>
         </div>
         <div class="header-right">
-            <div class="status-pill online"><span class="status-dot"></span> System Online</div>
+            <div class="status-pill checking" id="system-status-pill"><span class="status-dot"></span><span id="system-status-text">Connecting…</span></div>
             <div class="header-clock" id="header-clock">--:--:--</div>
         </div>
     </header>
@@ -1335,6 +1350,19 @@
     // ============================
     // Fetch & Render: Dashboard
     // ============================
+    // ============================
+    // System Status Pill
+    // ============================
+    function setSystemStatus(state) {
+        const pill = document.getElementById('system-status-pill');
+        const text = document.getElementById('system-status-text');
+        if (!pill || !text) return;
+        pill.className = `status-pill ${state}`;
+        if (state === 'online')       { text.textContent = 'System Online'; }
+        else if (state === 'offline') { text.textContent = 'DB Unreachable'; }
+        else                          { text.textContent = 'Connecting…'; }
+    }
+
     async function refreshDashboard() {
         try {
             const [dashboard, devices, maintenance, technicians] = await Promise.all([
@@ -1343,6 +1371,8 @@
                 apiGet('/maintenance'),
                 apiGet('/technicians')
             ]);
+
+            setSystemStatus('online');
 
             cachedDevices = devices;
             cachedMaintenance = maintenance;
@@ -1386,6 +1416,7 @@
 
         } catch (err) {
             console.error('[REFRESH ERROR]', err);
+            setSystemStatus('offline');
         }
     }
 
@@ -2158,10 +2189,20 @@
     });
 
     // ============================
-    // Initial Load
+    // Initial Load & Health Polling
     // ============================
     refreshDashboard();
     refreshTelemetryChart();
+
+    // Periodic health check every 30 seconds
+    setInterval(async () => {
+        try {
+            await apiGet('/dashboard');
+            setSystemStatus('online');
+        } catch {
+            setSystemStatus('offline');
+        }
+    }, 30000);
 </script>
 </body>
 </html>
