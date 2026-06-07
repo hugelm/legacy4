@@ -7,6 +7,7 @@ import re
 import sys
 import time
 from datetime import datetime, timedelta
+import threading
 
 DB_HOST = os.environ.get('DB_HOST', 'db')
 DB_USER = os.environ.get('DB_USER', 'legacy_user')
@@ -83,7 +84,12 @@ def require_text(value, field_name):
     return text
 
 
+db_initialized = False
+
+
 def get_db():
+    if not db_initialized:
+        raise ApiError("Database is initializing, please try again shortly", 503)
     return pymysql.connect(
         host=DB_HOST,
         user=DB_USER,
@@ -115,7 +121,7 @@ def init_db():
 
     if not conn:
         print("[DB] Could not connect to database host. Exiting.", flush=True)
-        sys.exit(1)
+        os._exit(1)
 
     try:
         with conn.cursor() as cursor:
@@ -256,9 +262,11 @@ def init_db():
 
         conn.commit()
         print("[DB] Database initialized successfully.", flush=True)
+        global db_initialized
+        db_initialized = True
     except Exception as e:
         print(f"[DB] Error creating tables / seeding: {e}", flush=True)
-        sys.exit(1)
+        os._exit(1)
     finally:
         conn.close()
 
@@ -809,7 +817,8 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    init_db()
+    # Start database initialization in a background thread to prevent blocking startup
+    threading.Thread(target=init_db, daemon=True).start()
     server = http.server.HTTPServer(('0.0.0.0', 8080), IoTInboundHandler)
     print("=" * 60, flush=True)
     print("  LegacyHub API running on Port 8080", flush=True)
