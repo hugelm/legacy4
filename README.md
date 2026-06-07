@@ -74,8 +74,12 @@ All database credentials are managed via environment variables.
 | `DB_USER` | Application DB user |
 | `DB_PASSWORD` | Application DB password |
 
+To view current secrets (environment variables), use `eb printenv`:
+```bash
+eb printenv
+```
 
-To change a secret, use `eb setenv`:
+To change a secret (environment variable), use `eb setenv`:
 ```bash
 eb setenv DB_PASSWORD=your_new_password
 ```
