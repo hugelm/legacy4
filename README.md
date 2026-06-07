@@ -21,8 +21,11 @@ eb init legacy4-app --platform "Docker running on 64bit Amazon Linux 2023" --reg
 
 ### 3. Create the Environment
 ```bash
-eb create legacy4-env
+eb create legacy4-env \
+  --envvars DB_ROOT_PASSWORD=your_root_password,DB_USER=your_db_user,DB_PASSWORD=your_db_password,DB_NAME=legacyhub
 ```
+
+> ⚠️ Replace all database environment variables with secure credentials!
 
 ---
 
@@ -57,6 +60,26 @@ Add the following secrets:
 ### 2. Triggering the Automation
 Commit and push your changes to the `main` branch. The pipeline `.github/workflows/deploy.yml` will automatically build the `deploy.zip` and send it to AWS Elastic Beanstalk for deployment.
 > **Info:** You can monitor the live building process under the **Actions** tab of the GitHub repository.
+
+---
+
+## 🔐 Environment Variables
+
+All database credentials are managed via environment variables.
+
+| Variable | Description |
+|---|---|
+| `DB_NAME` | Database name (default: `legacyhub`) |
+| `DB_ROOT_PASSWORD` | MariaDB root password |
+| `DB_USER` | Application DB user |
+| `DB_PASSWORD` | Application DB password |
+
+
+To change a secret, use `eb setenv`:
+```bash
+eb setenv DB_PASSWORD=your_new_password
+```
+Elastic Beanstalk will restart the environment automatically to apply the new value.
 
 ---
 

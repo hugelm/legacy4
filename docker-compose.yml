@@ -14,22 +14,22 @@ services:
     volumes: ["/var/app/current/backend:/app"]
     environment:
       - DB_HOST=db
-      - DB_USER=legacy_user
-      - DB_PASSWORD=legacy_pass
-      - DB_NAME=legacyhub
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
     depends_on:
       db: {condition: service_healthy}
 
   db:
     image: mariadb:10.11
     environment:
-      MYSQL_ROOT_PASSWORD: root_pass
-      MYSQL_DATABASE: legacyhub
-      MYSQL_USER: legacy_user
-      MYSQL_PASSWORD: legacy_pass    
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes: ["legacy4-db-data:/var/lib/mysql"]
     healthcheck:
-      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -uroot -proot_pass || exit 1"]
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -uroot -p${DB_ROOT_PASSWORD} || exit 1"]
       interval: 3s
       timeout: 3s
       retries: 10
