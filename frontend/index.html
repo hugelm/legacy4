@@ -1114,6 +1114,53 @@
         </div>
 
         <div id="view-admin" class="dashboard-view">
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title-area">
+                        <i class="fa-solid fa-users-gear"></i>
+                        <span class="card-title">Technicians</span>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="openTechnicianModal('create')">
+                        <i class="fa-solid fa-plus"></i> Add Technician
+                    </button>
+                </div>
+                <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:16px;">
+                    Manage technicians available in the Maintenance Planning dropdown.
+                </p>
+                <div id="technician-table-area">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead><tr>
+                                <th>Name</th><th>Added</th><th style="width:100px;">Actions</th>
+                            </tr></thead>
+                            <tbody id="technician-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="technician-empty" class="empty-state" style="display:none;">
+                    <div class="empty-state-icon"><i class="fa-solid fa-user-plus"></i></div>
+                    <h3>No technicians yet</h3>
+                    <p>Add technicians to assign them to maintenance events.</p>
+                    <button class="btn btn-primary" onclick="openTechnicianModal('create')"><i class="fa-solid fa-plus"></i> Add First Technician</button>
+                </div>
+            </div>
+
+            <div class="card glow" style="margin-bottom: 20px;">
+                <div class="card-header">
+                    <div class="card-title-area">
+                        <i class="fa-solid fa-book"></i>
+                        <span class="card-title">API Documentation</span>
+                    </div>
+                </div>
+                <p style="font-size:0.88rem; color:var(--text-muted); line-height:1.6; margin-bottom:18px;">
+                    Interactive OpenAPI documentation for all LegacyHub REST endpoints. Test requests directly from the browser.
+                </p>
+                <a class="btn btn-primary" href="/docs" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Swagger UI
+                </a>
+            </div>
+
             <div class="card glow" style="margin-bottom: 20px;">
                 <div class="card-header">
                     <div class="card-title-area">
@@ -1160,51 +1207,6 @@
                 </div>
             </div>
 
-            <div class="card glow" style="margin-bottom: 20px;">
-                <div class="card-header">
-                    <div class="card-title-area">
-                        <i class="fa-solid fa-book"></i>
-                        <span class="card-title">API Documentation</span>
-                    </div>
-                </div>
-                <p style="font-size:0.88rem; color:var(--text-muted); line-height:1.6; margin-bottom:18px;">
-                    Interactive OpenAPI documentation for all LegacyHub REST endpoints. Test requests directly from the browser.
-                </p>
-                <a class="btn btn-primary" href="/docs" target="_blank" rel="noopener noreferrer">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Swagger UI
-                </a>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title-area">
-                        <i class="fa-solid fa-users-gear"></i>
-                        <span class="card-title">Technicians</span>
-                    </div>
-                    <button class="btn btn-primary btn-sm" onclick="openTechnicianModal('create')">
-                        <i class="fa-solid fa-plus"></i> Add Technician
-                    </button>
-                </div>
-                <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:16px;">
-                    Manage technicians available in the Maintenance Planning dropdown.
-                </p>
-                <div id="technician-table-area">
-                    <div class="table-wrapper">
-                        <table>
-                            <thead><tr>
-                                <th>Name</th><th>Added</th><th style="width:100px;">Actions</th>
-                            </tr></thead>
-                            <tbody id="technician-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-                <div id="technician-empty" class="empty-state" style="display:none;">
-                    <div class="empty-state-icon"><i class="fa-solid fa-user-plus"></i></div>
-                    <h3>No technicians yet</h3>
-                    <p>Add technicians to assign them to maintenance events.</p>
-                    <button class="btn btn-primary" onclick="openTechnicianModal('create')"><i class="fa-solid fa-plus"></i> Add First Technician</button>
-                </div>
-            </div>
         </div>
 
     </div>
