@@ -375,6 +375,36 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/db-info:
+    get:
+      tags: [Dashboard]
+      summary: Get database connection information
+      operationId: getDbInfo
+      responses:
+        '200':
+          description: Database connection details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DbInfo'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/db-info/reveal:
+    get:
+      tags: [Dashboard]
+      summary: Reveal the database password
+      operationId: getDbPassword
+      responses:
+        '200':
+          description: Database password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DbPassword'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
 components:
   parameters:
     DeviceId:
@@ -725,6 +755,26 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Maintenance'
+
+    DbInfo:
+      type: object
+      properties:
+        host:
+          type: string
+          example: db
+        database:
+          type: string
+          example: legacyhub
+        user:
+          type: string
+          example: legacy_user
+
+    DbPassword:
+      type: object
+      properties:
+        password:
+          type: string
+          example: legacy_pass
 
     ApiError:
       type: object

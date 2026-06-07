@@ -1117,6 +1117,52 @@
             <div class="card glow" style="margin-bottom: 20px;">
                 <div class="card-header">
                     <div class="card-title-area">
+                        <i class="fa-solid fa-database"></i>
+                        <span class="card-title">Database Connection Info</span>
+                    </div>
+                </div>
+                <p style="font-size:0.88rem; color:var(--text-muted); line-height:1.6; margin-bottom:18px;">
+                    Configuration details used to establish connection to the backend database.
+                </p>
+                <div class="db-info-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 8px;">
+                    <div class="db-info-item" style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Host</div>
+                        <div id="db-info-host" style="font-family: monospace; font-size: 0.95rem; color: var(--text-light);">Loading...</div>
+                    </div>
+                    <div class="db-info-item" style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Database Name</div>
+                        <div id="db-info-database" style="font-family: monospace; font-size: 0.95rem; color: var(--text-light);">Loading...</div>
+                    </div>
+                    <div class="db-info-item" style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">User</div>
+                        <div id="db-info-user" style="font-family: monospace; font-size: 0.95rem; color: var(--text-light);">Loading...</div>
+                    </div>
+                    <div class="db-info-item" style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Password</div>
+                        <div id="db-info-password" style="font-family: monospace; font-size: 0.95rem; color: var(--text-light); word-break: break-all;">••••••••</div>
+                        <div id="db-pw-reveal-area" style="margin-top: 8px;">
+                            <button id="db-pw-reveal-btn" class="btn btn-secondary btn-sm" onclick="startDbPasswordReveal()" style="padding: 2px 8px; font-size: 0.75rem;">
+                                <i class="fa-solid fa-lock"></i> Reveal Password
+                            </button>
+                            <div id="db-pw-confirm-box" style="display: none; margin-top: 10px; padding: 10px; background: rgba(255,80,80,0.08); border: 1px solid rgba(255,80,80,0.25); border-radius: 6px;">
+                                <div style="font-size: 0.78rem; color: #ff9999; margin-bottom: 6px;">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Type <strong>CONFIRM</strong> to reveal the database password.
+                                </div>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <input id="db-pw-confirm-input" type="text" autocomplete="off" placeholder="CONFIRM" style="flex: 1; padding: 5px 8px; font-size: 0.82rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: var(--text-light); font-family: monospace;">
+                                    <button class="btn btn-primary btn-sm" onclick="confirmDbPasswordReveal()" style="padding: 4px 10px; font-size: 0.78rem;">Confirm</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="cancelDbPasswordReveal()" style="padding: 4px 10px; font-size: 0.78rem;">Cancel</button>
+                                </div>
+                                <div id="db-pw-confirm-error" style="display: none; font-size: 0.75rem; color: #ff6666; margin-top: 5px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card glow" style="margin-bottom: 20px;">
+                <div class="card-header">
+                    <div class="card-title-area">
                         <i class="fa-solid fa-book"></i>
                         <span class="card-title">API Documentation</span>
                     </div>
@@ -1201,6 +1247,70 @@
             view.classList.toggle('active', view.id === `view-${tabId}`);
         });
         viewTitle.innerText = tabNameMap[tabId] || 'Dashboard';
+        if (tabId === 'admin') {
+            loadDbInfo();
+        }
+    }
+
+    let dbPasswordVal = '';
+
+    async function loadDbInfo() {
+        try {
+            const dbInfo = await apiGet('/db-info');
+            document.getElementById('db-info-host').textContent = dbInfo.host;
+            document.getElementById('db-info-database').textContent = dbInfo.database;
+            document.getElementById('db-info-user').textContent = dbInfo.user;
+            // Reset password state on each load
+            dbPasswordVal = '';
+            document.getElementById('db-info-password').textContent = '••••••••';
+            document.getElementById('db-pw-reveal-btn').style.display = '';
+            document.getElementById('db-pw-confirm-box').style.display = 'none';
+        } catch (err) {
+            console.error('Failed to load DB info:', err);
+            document.getElementById('db-info-host').textContent = 'Error';
+            document.getElementById('db-info-database').textContent = 'Error';
+            document.getElementById('db-info-user').textContent = 'Error';
+            document.getElementById('db-info-password').textContent = 'Error';
+        }
+    }
+
+    window.startDbPasswordReveal = function() {
+        document.getElementById('db-pw-reveal-btn').style.display = 'none';
+        document.getElementById('db-pw-confirm-box').style.display = 'block';
+        document.getElementById('db-pw-confirm-input').value = '';
+        document.getElementById('db-pw-confirm-error').style.display = 'none';
+        document.getElementById('db-pw-confirm-input').focus();
+    }
+
+    window.cancelDbPasswordReveal = function() {
+        document.getElementById('db-pw-confirm-box').style.display = 'none';
+        document.getElementById('db-pw-reveal-btn').style.display = '';
+    }
+
+    window.confirmDbPasswordReveal = async function() {
+        const input = document.getElementById('db-pw-confirm-input').value.trim();
+        const errorEl = document.getElementById('db-pw-confirm-error');
+        if (input !== 'CONFIRM') {
+            errorEl.textContent = 'Please type CONFIRM exactly to proceed.';
+            errorEl.style.display = 'block';
+            return;
+        }
+        errorEl.style.display = 'none';
+        try {
+            const data = await apiGet('/db-info/reveal');
+            dbPasswordVal = data.password || '';
+            document.getElementById('db-info-password').textContent = dbPasswordVal || '—';
+            document.getElementById('db-pw-confirm-box').style.display = 'none';
+            // Auto-hide after 30 seconds
+            setTimeout(() => {
+                dbPasswordVal = '';
+                document.getElementById('db-info-password').textContent = '••••••••';
+                document.getElementById('db-pw-reveal-btn').style.display = '';
+            }, 30000);
+        } catch (err) {
+            errorEl.textContent = 'Failed to retrieve password: ' + err.message;
+            errorEl.style.display = 'block';
+        }
     }
 
     tabItems.forEach(item => {

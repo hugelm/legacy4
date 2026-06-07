@@ -354,6 +354,10 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
             self._run("get technicians", self._get_technicians)
         elif segments == ['api', 'dashboard']:
             self._run("get dashboard", self._get_dashboard)
+        elif segments == ['api', 'db-info']:
+            self._run("get db-info", self._get_db_info)
+        elif segments == ['api', 'db-info', 'reveal']:
+            self._run("get db-info reveal", self._reveal_db_password)
         else:
             self._send_error(404, "Endpoint not found")
 
@@ -786,6 +790,18 @@ class IoTInboundHandler(http.server.BaseHTTPRequestHandler):
             "pending_maintenance": pending_maintenance,
             "history": history,
             "upcoming_maintenance": upcoming_maintenance
+        })
+
+    def _get_db_info(self):
+        self._send_json(200, {
+            "host": DB_HOST,
+            "database": DB_NAME,
+            "user": DB_USER
+        })
+
+    def _reveal_db_password(self):
+        self._send_json(200, {
+            "password": DB_PASSWORD
         })
 
     def log_message(self, format, *args):
