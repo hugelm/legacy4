@@ -85,6 +85,9 @@ eb setenv DB_PASSWORD=your_new_password
 ```
 Elastic Beanstalk will restart the environment automatically to apply the new value.
 
+> **Info:** MariaDB/Docker database images only initialize passwords and users once during the very first creation of the database.
+If you change secrets later, the existing database inside the active Docker volume will ignore the new values. To force a new secret configuration, you must increment the volume name in your docker-compose.yml (e.g. to legacy4-db-data-v2) or create a new fresh Elastic Beanstalk environment.
+
 ---
 
 ## 📊 Monitoring & Debugging
