@@ -26,8 +26,8 @@ services:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes: ["legacy4-db-data:/var/lib/mysql"]
-    healthcheck:
-      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -uroot -p${DB_ROOT_PASSWORD} || exit 1"]
+healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
       interval: 3s
       timeout: 3s
       retries: 10
